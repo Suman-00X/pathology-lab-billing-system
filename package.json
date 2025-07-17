@@ -1,0 +1,21 @@
+{
+  "name": "pathology-lab-billing",
+  "version": "1.0.0",
+  "description": "Pathology Lab Billing Software - MERN Stack",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm start",
+    "install-server": "cd server && npm install",
+    "install-client": "cd client && npm install",
+    "install-all": "npm run install-server && npm run install-client",
+    "check-env": "cd server && npm run check-env"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": ["pathology", "billing", "mern", "lab"],
+  "author": "Pathology Lab",
+  "license": "MIT"
+} 
