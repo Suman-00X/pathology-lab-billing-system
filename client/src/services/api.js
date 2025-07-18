@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://pathology-lab-billing-system.onrender.com/api';
+const API_BASE_URL = 'https://pathology-lab-billing-system.onrender.com';
 
 // Create axios instance
 const api = axios.create({
@@ -25,67 +25,67 @@ api.interceptors.response.use(
 
 // Lab API
 export const labAPI = {
-  get: () => api.get('/lab'),
-  create: (data) => api.post('/lab', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  update: (id, data) => api.put(`/lab/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  delete: (id) => api.delete(`/lab/${id}`)
+  get: () => api.get('/api/lab'),
+  create: (data) => api.post('/api/lab', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  update: (id, data) => api.put(`/api/lab/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  delete: (id) => api.delete(`/api/lab/${id}`)
 };
 
 // Test Groups API
 export const testGroupAPI = {
-  getAll: (params) => api.get('/test-groups', { params }),
-  getById: (id) => api.get(`/test-groups/${id}`),
-  create: (data) => api.post('/test-groups', data),
-  update: (id, data) => api.put(`/test-groups/${id}`, data),
-  delete: (id) => api.delete(`/test-groups/${id}`),
+  getAll: (params) => api.get('/api/test-groups', { params }),
+  getById: (id) => api.get(`/api/test-groups/${id}`),
+  create: (data) => api.post('/api/test-groups', data),
+  update: (id, data) => api.put(`/api/test-groups/${id}`, data),
+  delete: (id) => api.delete(`/api/test-groups/${id}`),
   // Methods for tests within a group
-  addTest: (groupId, testData) => api.post(`/test-groups/${groupId}/tests`, testData),
-  updateTest: (testId, testData) => api.put(`/test-groups/tests/${testId}`, testData),
-  removeTest: (groupId, testId) => api.delete(`/test-groups/${groupId}/tests/${testId}`)
+  addTest: (groupId, testData) => api.post(`/api/test-groups/${groupId}/tests`, testData),
+  updateTest: (testId, testData) => api.put(`/api/test-groups/tests/${testId}`, testData),
+  removeTest: (groupId, testId) => api.delete(`/api/test-groups/${groupId}/tests/${testId}`)
 };
 
 // Bills API
 export const billAPI = {
-  getAll: (params) => api.get('/bills', { params }),
-  getById: (id) => api.get(`/bills/${id}`),
-  getByNumber: (billNumber) => api.get(`/bills/number/${billNumber}`),
-  create: (data) => api.post('/bills', data),
-  update: (id, data) => api.put(`/bills/${id}`, data),
-  delete: (id) => api.delete(`/bills/${id}`),
-  updatePayment: (id, data) => api.put(`/bills/${id}/payment`, data),
-  getStats: (params) => api.get('/bills/stats/summary', { params })
+  getAll: (params) => api.get('/api/bills', { params }),
+  getById: (id) => api.get(`/api/bills/${id}`),
+  getByNumber: (billNumber) => api.get(`/api/bills/number/${billNumber}`),
+  create: (data) => api.post('/api/bills', data),
+  update: (id, data) => api.put(`/api/bills/${id}`, data),
+  delete: (id) => api.delete(`/api/bills/${id}`),
+  updatePayment: (id, data) => api.put(`/api/bills/${id}/payment`, data),
+  getStats: (params) => api.get('/api/bills/stats/summary', { params })
 };
 
 // Reports API
 export const reportAPI = {
-  getByBillId: (billId) => api.get(`/reports/bill/${billId}`),
-  update: (reportId, updateData) => api.put(`/reports/${reportId}`, updateData)
+  getByBillId: (billId) => api.get(`/api/reports/bill/${billId}`),
+  update: (reportId, updateData) => api.put(`/api/reports/${reportId}`, updateData)
 };
 
 // Payment Modes API
 export const paymentModeAPI = {
-  getAll: () => api.get('/payment-modes'),
-  getById: (id) => api.get(`/payment-modes/${id}`),
-  create: (data) => api.post('/payment-modes', data),
-  update: (id, data) => api.put(`/payment-modes/${id}`, data),
-  delete: (id) => api.delete(`/payment-modes/${id}`)
+  getAll: () => api.get('/api/payment-modes'),
+  getById: (id) => api.get(`/api/payment-modes/${id}`),
+  create: (data) => api.post('/api/payment-modes', data),
+  update: (id, data) => api.put(`/api/payment-modes/${id}`, data),
+  delete: (id) => api.delete(`/api/payment-modes/${id}`)
 };
 
 // Settings API
 export const settingsAPI = {
-  get: () => api.get('/settings'),
-  update: (data) => api.put('/settings', data)
+  get: () => api.get('/api/settings'),
+  update: (data) => api.put('/api/settings', data)
 };
 
 // Referred Doctors API
 export const referredDoctorAPI = {
-  getAll: (params) => api.get('/referred-doctors', { params }),
-  getById: (id) => api.get(`/referred-doctors/${id}`),
-  searchByMobile: (mobile) => api.get(`/referred-doctors/search/mobile/${mobile}`),
-  create: (data) => api.post('/referred-doctors', data),
-  update: (id, data) => api.put(`/referred-doctors/${id}`, data),
-  delete: (id) => api.delete(`/referred-doctors/${id}`),
-  getBills: (id, params) => api.get(`/referred-doctors/${id}/bills`, { params })
+  getAll: (params) => api.get('/api/referred-doctors', { params }),
+  getById: (id) => api.get(`/api/referred-doctors/${id}`),
+  searchByMobile: (mobile) => api.get(`/api/referred-doctors/search/mobile/${mobile}`),
+  create: (data) => api.post('/api/referred-doctors', data),
+  update: (id, data) => api.put(`/api/referred-doctors/${id}`, data),
+  delete: (id) => api.delete(`/api/referred-doctors/${id}`),
+  getBills: (id, params) => api.get(`/api/referred-doctors/${id}/bills`, { params })
 };
 
 export default api; 

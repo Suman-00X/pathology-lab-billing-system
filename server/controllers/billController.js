@@ -298,14 +298,16 @@ export const billController = {
       }
 
       // Doctor filter
-      if (doctorId && doctorId !== 'all') {
-        // We need to find the doctor first to get their details
-        const doctor = await ReferredDoctor.findById(doctorId);
-        if (doctor) {
-          filter.$and = [
-            { 'referredBy.doctorName': doctor.name },
-            { 'referredBy.phone': doctor.phone }
-          ];
+      if (doctorId && doctorId !== 'all' && doctorId !== '') {
+        try {
+          const doctor = await ReferredDoctor.findById(doctorId);
+          if (doctor) {
+            // Simple filter by doctor name (primary) and phone (secondary verification)
+            filter['referredBy.doctorName'] = doctor.name;
+            filter['referredBy.phone'] = doctor.phone;
+          }
+        } catch (error) {
+          console.error('❌ Error finding doctor for filter:', error.message);
         }
       }
       
@@ -314,12 +316,12 @@ export const billController = {
         const searchTerm = search.trim();
         const searchRegex = { $regex: searchTerm, $options: 'i' };
         
-        // Combine search with existing filters using $and if other filters exist
-        const searchFilter = {};
+        // Create search filter
+        let searchConditions = [];
         
         if (searchBy === 'all') {
           // Search across all fields
-          searchFilter.$or = [
+          searchConditions = [
             { 'patient.name': searchRegex },
             { 'patient.phone': searchRegex },
             { 'patient.address.street': searchRegex },
@@ -331,16 +333,16 @@ export const billController = {
             { billNumber: searchRegex }
           ];
         } else if (searchBy === 'patientName') {
-          searchFilter['patient.name'] = searchRegex;
+          searchConditions = [{ 'patient.name': searchRegex }];
         } else if (searchBy === 'patientPhone') {
-          searchFilter['patient.phone'] = searchRegex;
+          searchConditions = [{ 'patient.phone': searchRegex }];
         } else if (searchBy === 'doctorName') {
-          searchFilter.$or = [
+          searchConditions = [
             { 'referredBy.doctorName': searchRegex },
             { 'referredBy.phone': searchRegex }
           ];
         } else if (searchBy === 'address') {
-          searchFilter.$or = [
+          searchConditions = [
             { 'patient.address.street': searchRegex },
             { 'patient.address.city': searchRegex },
             { 'patient.address.state': searchRegex },
@@ -348,11 +350,20 @@ export const billController = {
           ];
         }
 
-        // Combine search filter with existing filters
-        if (Object.keys(filter).length > 0) {
-          filter = { $and: [filter, searchFilter] };
-        } else {
-          filter = searchFilter;
+        // Add search conditions to filter
+        if (searchConditions.length > 0) {
+          if (Object.keys(filter).length > 0) {
+            // Combine existing filters with search using $and
+            filter = { 
+              $and: [
+                filter,
+                { $or: searchConditions }
+              ]
+            };
+          } else {
+            // Only search filter
+            filter = { $or: searchConditions };
+          }
         }
       }
 

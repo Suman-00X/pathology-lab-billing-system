@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useBills } from '../../hooks/useApiHooks';
 import { Link, useNavigate } from 'react-router-dom';
-import { List, FileText, Receipt, Trash2, Search, Filter, SortAsc, SortDesc, Calendar, DollarSign } from 'lucide-react';
+import { List, FileText, Receipt, Trash2, Search, Filter, SortAsc, SortDesc, Calendar, DollarSign, RefreshCw } from 'lucide-react';
 import DoctorDropdown from '../../components/DoctorDropdown';
 import { useDoctors } from '../../hooks/useApiHooks';
 
@@ -12,25 +12,55 @@ function BillsList() {
     const [sortOrder, setSortOrder] = useState('desc');
     const [currentPage, setCurrentPage] = useState(1);
     const [showFilters, setShowFilters] = useState(false);
+    const [showSortDropdown, setShowSortDropdown] = useState(false); // New state for sort dropdown
     
-    // New filter states
+    // Filter states
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [amountFilter, setAmountFilter] = useState('');
     const [amountValue, setAmountValue] = useState('');
     const [selectedDoctor, setSelectedDoctor] = useState('');
     
-    const { bills, pagination, loading, error, deleteBill } = useBills({ 
-        page: currentPage, 
-        search: searchTerm,
-        searchBy,
-        sortBy,
-        sortOrder,
-        startDate,
-        endDate,
-        amountFilter,
-        amountValue,
-        doctorId: selectedDoctor
+    const itemsPerPage = 10;
+    
+    const sortDropdownRef = useRef(null);
+    
+    // Search options constant
+    const searchOptions = [
+        { value: 'all', label: 'All Fields' },
+        { value: 'patientName', label: 'Patient Name' },
+        { value: 'patientPhone', label: 'Patient Phone' },
+        { value: 'doctorName', label: 'Doctor' },
+        { value: 'testGroup', label: 'Test Group' },
+        { value: 'address', label: 'Address' }
+    ];
+    
+    // Amount filter options constant
+    const amountFilterOptions = [
+        { value: '', label: 'No Filter' },
+        { value: 'greater', label: 'Greater than' },
+        { value: 'less', label: 'Less than' },
+        { value: 'equal', label: 'Equal to' }
+    ];
+    
+    // Close sort dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+                setShowSortDropdown(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+    
+    // Load all bills data once
+    const { bills: allBills, loading, error, deleteBill, refresh } = useBills({ 
+        page: 1, 
+        limit: 1000 // Load large number to get all bills
     });
     
     // Get doctors list to find selected doctor name
@@ -41,6 +71,148 @@ function BillsList() {
     );
     
     const navigate = useNavigate();
+
+    // Client-side filtering and sorting
+    const filteredAndSortedBills = useMemo(() => {
+        if (!allBills || allBills.length === 0) return [];
+        
+        let filtered = [...allBills];
+        
+        // Apply date range filter
+        if (startDate || endDate) {
+            filtered = filtered.filter(bill => {
+                const billDate = new Date(bill.billDate);
+                const start = startDate ? new Date(startDate) : null;
+                const end = endDate ? new Date(endDate) : null;
+                
+                if (start && billDate < start) return false;
+                if (end && billDate > end) return false;
+                return true;
+            });
+        }
+        
+        // Apply amount filter
+        if (amountFilter && amountValue) {
+            const amount = parseFloat(amountValue);
+            if (!isNaN(amount)) {
+                filtered = filtered.filter(bill => {
+                    if (amountFilter === 'greater') return bill.finalAmount > amount;
+                    if (amountFilter === 'less') return bill.finalAmount < amount;
+                    if (amountFilter === 'equal') return Math.abs(bill.finalAmount - amount) < 0.01;
+                    return true;
+                });
+            }
+        }
+        
+        // Apply doctor filter
+        if (selectedDoctor && selectedDoctorData) {
+            filtered = filtered.filter(bill => 
+                bill.referredBy.doctorName === selectedDoctorData.name &&
+                bill.referredBy.phone === selectedDoctorData.phone
+            );
+        }
+        
+        // Apply search filter
+        if (searchTerm && searchTerm.trim()) {
+            const searchLower = searchTerm.trim().toLowerCase();
+            
+            filtered = filtered.filter(bill => {
+                const searchFields = [];
+                
+                if (searchBy === 'all') {
+                    searchFields.push(
+                        bill.patient.name?.toLowerCase() || '',
+                        bill.patient.phone?.toLowerCase() || '',
+                        bill.patient.address?.street?.toLowerCase() || '',
+                        bill.patient.address?.city?.toLowerCase() || '',
+                        bill.patient.address?.state?.toLowerCase() || '',
+                        bill.patient.address?.pincode?.toLowerCase() || '',
+                        bill.referredBy.doctorName?.toLowerCase() || '',
+                        bill.referredBy.phone?.toLowerCase() || '',
+                        bill.billNumber?.toLowerCase() || '',
+                        // Search in test groups
+                        ...(bill.testGroups?.map(tg => tg.name?.toLowerCase() || '') || [])
+                    );
+                } else if (searchBy === 'patientName') {
+                    searchFields.push(bill.patient.name?.toLowerCase() || '');
+                } else if (searchBy === 'patientPhone') {
+                    searchFields.push(bill.patient.phone?.toLowerCase() || '');
+                } else if (searchBy === 'doctorName') {
+                    searchFields.push(
+                        bill.referredBy.doctorName?.toLowerCase() || '',
+                        bill.referredBy.phone?.toLowerCase() || ''
+                    );
+                } else if (searchBy === 'testGroup') {
+                    searchFields.push(
+                        ...(bill.testGroups?.map(tg => tg.name?.toLowerCase() || '') || [])
+                    );
+                } else if (searchBy === 'address') {
+                    searchFields.push(
+                        bill.patient.address?.street?.toLowerCase() || '',
+                        bill.patient.address?.city?.toLowerCase() || '',
+                        bill.patient.address?.state?.toLowerCase() || '',
+                        bill.patient.address?.pincode?.toLowerCase() || ''
+                    );
+                }
+                
+                return searchFields.some(field => field.includes(searchLower));
+            });
+        }
+        
+        // Apply sorting
+        filtered.sort((a, b) => {
+            let aValue, bValue;
+            
+            switch (sortBy) {
+                case 'billDate':
+                    aValue = new Date(a.billDate);
+                    bValue = new Date(b.billDate);
+                    break;
+                case 'patientName':
+                    aValue = a.patient.name?.toLowerCase() || '';
+                    bValue = b.patient.name?.toLowerCase() || '';
+                    break;
+                case 'doctorName':
+                    aValue = a.referredBy.doctorName?.toLowerCase() || '';
+                    bValue = b.referredBy.doctorName?.toLowerCase() || '';
+                    break;
+                case 'finalAmount':
+                    aValue = a.finalAmount || 0;
+                    bValue = b.finalAmount || 0;
+                    break;
+                case 'billNumber':
+                    aValue = a.billNumber?.toLowerCase() || '';
+                    bValue = b.billNumber?.toLowerCase() || '';
+                    break;
+                case 'paymentStatus':
+                    aValue = a.paymentStatus?.toLowerCase() || '';
+                    bValue = b.paymentStatus?.toLowerCase() || '';
+                    break;
+                default:
+                    aValue = new Date(a.billDate);
+                    bValue = new Date(b.billDate);
+            }
+            
+            if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+            return 0;
+        });
+        
+        return filtered;
+    }, [allBills, startDate, endDate, amountFilter, amountValue, selectedDoctor, selectedDoctorData, searchTerm, searchBy, sortBy, sortOrder]);
+
+    // Client-side pagination
+    const paginatedBills = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filteredAndSortedBills.slice(startIndex, endIndex);
+    }, [filteredAndSortedBills, currentPage]);
+
+    const pagination = useMemo(() => ({
+        total: filteredAndSortedBills.length,
+        totalPages: Math.ceil(filteredAndSortedBills.length / itemsPerPage),
+        currentPage: currentPage
+    }), [filteredAndSortedBills.length, currentPage]);
 
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this bill and its associated report?')) {
@@ -70,6 +242,7 @@ function BillsList() {
             setSortOrder('desc');
         }
         setCurrentPage(1);
+        setShowSortDropdown(false); // Close dropdown after selection
     };
 
     const clearAllFilters = () => {
@@ -87,15 +260,6 @@ function BillsList() {
 
     const hasActiveFilters = searchTerm || startDate || endDate || amountFilter || selectedDoctor;
 
-    const searchOptions = [
-        { value: 'all', label: 'All Fields' },
-        { value: 'patientName', label: 'Patient Name' },
-        { value: 'patientPhone', label: 'Patient Phone' },
-        { value: 'doctorName', label: 'Referring Doctor' },
-        { value: 'testGroup', label: 'Test Group' },
-        { value: 'address', label: 'Address' }
-    ];
-
     const sortOptions = [
         { value: 'billDate', label: 'Bill Date' },
         { value: 'patientName', label: 'Patient Name' },
@@ -103,13 +267,6 @@ function BillsList() {
         { value: 'finalAmount', label: 'Bill Amount' },
         { value: 'billNumber', label: 'Bill Number' },
         { value: 'paymentStatus', label: 'Payment Status' }
-    ];
-
-    const amountFilterOptions = [
-        { value: '', label: 'No filter' },
-        { value: 'greater', label: 'Greater than' },
-        { value: 'less', label: 'Less than' },
-        { value: 'equal', label: 'Equal to' }
     ];
 
     if (error) return <div className="text-red-500 text-center py-10">Error: {error.message}</div>;
@@ -122,19 +279,74 @@ function BillsList() {
                 </h1>
                 
                 {/* Search and Filter Controls */}
-                <div className="flex flex-col sm:flex-row gap-3 lg:max-w-2xl lg:flex-1 lg:justify-end">
-                    {/* Search Input */}
-                    <div className="relative flex-1 min-w-80">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20}/>
-                        <input 
-                            type="text"
-                            placeholder={`Search by ${searchOptions.find(opt => opt.value === searchBy)?.label.toLowerCase() || 'all fields'}...`}
-                            value={searchTerm}
-                            onChange={handleSearch}
-                            className="pl-10 pr-4 py-2 border rounded-lg w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                        />
+                <div className="flex flex-wrap items-center gap-4">
+                    {/* Search */}
+                    <div className="flex-1 min-w-64">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                            <input
+                                type="text"
+                                placeholder="Search bills..."
+                                value={searchTerm}
+                                onChange={handleSearch}
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                            />
+                        </div>
                     </div>
-                    
+
+                    {/* Search By Dropdown */}
+                    <select
+                        value={searchBy}
+                        onChange={handleSearchByChange}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 whitespace-nowrap"
+                    >
+                        <option value="all">All Fields</option>
+                        <option value="patientName">Patient Name</option>
+                        <option value="patientPhone">Patient Phone</option>
+                        <option value="doctorName">Doctor</option>
+                        <option value="testGroup">Test Group</option>
+                        <option value="address">Address</option>
+                    </select>
+
+                    {/* Sort Button */}
+                    <div className="relative" ref={sortDropdownRef}>
+                        <button
+                            onClick={() => setShowSortDropdown(!showSortDropdown)}
+                            className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-primary-500 whitespace-nowrap"
+                        >
+                            {sortOrder === 'asc' ? <SortAsc className="h-4 w-4 mr-2" /> : <SortDesc className="h-4 w-4 mr-2" />}
+                            Sort
+                        </button>
+                        
+                        {/* Sort Dropdown */}
+                        {showSortDropdown && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+                                <div className="py-1">
+                                    {[
+                                        { value: 'billDate', label: 'Date Created' },
+                                        { value: 'patientName', label: 'Patient Name' },
+                                        { value: 'doctorName', label: 'Doctor Name' },
+                                        { value: 'finalAmount', label: 'Amount' },
+                                        { value: 'paymentStatus', label: 'Payment Status' }
+                                    ].map(option => (
+                                        <button
+                                            key={option.value}
+                                            onClick={() => handleSortChange(option.value)}
+                                            className={`w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between ${
+                                                sortBy === option.value ? 'bg-primary-50 text-primary-700' : 'text-gray-900'
+                                            }`}
+                                        >
+                                            {option.label}
+                                            {sortBy === option.value && (
+                                                sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Filter Toggle */}
                     <button
                         onClick={() => setShowFilters(!showFilters)}
@@ -144,6 +356,16 @@ function BillsList() {
                     >
                         <Filter className="h-4 w-4 mr-2" />
                         Filters {hasActiveFilters && <span className="ml-1 bg-primary-600 text-white text-xs rounded-full px-2 py-0.5">●</span>}
+                    </button>
+                    
+                    {/* Refresh Button */}
+                    <button
+                        onClick={refresh}
+                        disabled={loading}
+                        className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-primary-500 whitespace-nowrap disabled:opacity-50"
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                        Refresh
                     </button>
                 </div>
             </div>
@@ -199,168 +421,112 @@ function BillsList() {
             {/* Advanced Filters */}
             {showFilters && (
                 <div className="bg-gray-50 p-6 rounded-lg border">
-                    {/* Search and Sort Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        {/* Search By */}
+                    <h4 className="text-sm font-medium text-gray-900 mb-4">Advanced Filters</h4>
+                    
+                    {/* Date Range Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Search In</label>
-                            <select
-                                value={searchBy}
-                                onChange={handleSearchByChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                            >
-                                {searchOptions.map(option => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        
-                        {/* Sort By */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
-                            <select
-                                value={sortBy}
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <Calendar className="inline h-4 w-4 mr-1" />
+                                Start Date
+                            </label>
+                            <input
+                                type="date"
+                                value={startDate}
                                 onChange={(e) => {
-                                    setSortBy(e.target.value);
+                                    setStartDate(e.target.value);
                                     setCurrentPage(1);
                                 }}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                            >
-                                {sortOptions.map(option => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
+                            />
                         </div>
-                        
-                        {/* Sort Order */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
-                            <select
-                                value={sortOrder}
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <Calendar className="inline h-4 w-4 mr-1" />
+                                End Date
+                            </label>
+                            <input
+                                type="date"
+                                value={endDate}
                                 onChange={(e) => {
-                                    setSortOrder(e.target.value);
+                                    setEndDate(e.target.value);
                                     setCurrentPage(1);
                                 }}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                            >
-                                <option value="desc">Descending</option>
-                                <option value="asc">Ascending</option>
-                            </select>
+                            />
                         </div>
                     </div>
 
-                    <div className="border-t border-gray-200 pt-4">
-                        <h4 className="text-sm font-medium text-gray-900 mb-4">Advanced Filters</h4>
-                        
-                        {/* Date Range Row */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Calendar className="inline h-4 w-4 mr-1" />
-                                    Start Date
-                                </label>
-                                <input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => {
-                                        setStartDate(e.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Calendar className="inline h-4 w-4 mr-1" />
-                                    End Date
-                                </label>
-                                <input
-                                    type="date"
-                                    value={endDate}
-                                    onChange={(e) => {
-                                        setEndDate(e.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Amount Filter Row */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <DollarSign className="inline h-4 w-4 mr-1" />
-                                    Amount Filter
-                                </label>
-                                <select
-                                    value={amountFilter}
-                                    onChange={(e) => {
-                                        setAmountFilter(e.target.value);
-                                        setCurrentPage(1);
-                                        if (!e.target.value) {
-                                            setAmountValue(''); // Clear amount value when no filter
-                                        }
-                                    }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                >
-                                    {amountFilterOptions.map(option => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Amount Value (₹)
-                                </label>
-                                <input
-                                    type="number"
-                                    placeholder="Enter amount..."
-                                    value={amountValue}
-                                    onChange={(e) => {
-                                        setAmountValue(e.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                    disabled={!amountFilter}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                    min="0"
-                                    step="0.01"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Doctor Filter Row */}
-                        <div className="mb-4">
+                    {/* Amount Filter Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Filter by Referring Doctor
+                                <DollarSign className="inline h-4 w-4 mr-1" />
+                                Amount Filter
                             </label>
-                            <DoctorDropdown
-                                value={selectedDoctor}
-                                onChange={(doctorId) => {
-                                    setSelectedDoctor(doctorId);
+                            <select
+                                value={amountFilter}
+                                onChange={(e) => {
+                                    setAmountFilter(e.target.value);
+                                    setCurrentPage(1);
+                                    if (!e.target.value) {
+                                        setAmountValue(''); // Clear amount value when no filter
+                                    }
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                            >
+                                {amountFilterOptions.map(option => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Amount Value (₹)
+                            </label>
+                            <input
+                                type="number"
+                                placeholder="Enter amount..."
+                                value={amountValue}
+                                onChange={(e) => {
+                                    setAmountValue(e.target.value);
                                     setCurrentPage(1);
                                 }}
-                                placeholder="Select a doctor to filter..."
-                                className="w-full"
+                                disabled={!amountFilter}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                min="0"
+                                step="0.01"
                             />
                         </div>
+                    </div>
 
-                        {/* Clear Filters */}
-                        <div className="flex justify-end">
-                            <button
-                                onClick={clearAllFilters}
-                                disabled={!hasActiveFilters}
-                                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Clear All Filters
-                            </button>
-                        </div>
+                    {/* Doctor Filter Row */}
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Filter by Referring Doctor
+                        </label>
+                        <DoctorDropdown
+                            value={selectedDoctor}
+                            onChange={(doctorId) => {
+                                setSelectedDoctor(doctorId);
+                                setCurrentPage(1);
+                            }}
+                            placeholder="Select a doctor to filter..."
+                            className="w-full"
+                        />
+                    </div>
+
+                    {/* Clear Filters */}
+                    <div className="flex justify-end">
+                        <button
+                            onClick={clearAllFilters}
+                            disabled={!hasActiveFilters}
+                            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Clear All Filters
+                        </button>
                     </div>
                 </div>
             )}
@@ -430,8 +596,8 @@ function BillsList() {
                     <tbody className="bg-white divide-y divide-gray-200">
                         {loading ? (
                             <tr><td colSpan="6" className="text-center py-10">Loading...</td></tr>
-                        ) : bills.length > 0 ? (
-                            bills.map(bill => (
+                        ) : paginatedBills.length > 0 ? (
+                            paginatedBills.map(bill => (
                                 <tr key={bill._id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="font-medium text-gray-900">{bill.patient.name}</div>
@@ -481,7 +647,7 @@ function BillsList() {
                             ))
                         ) : (
                             <tr><td colSpan="6" className="text-center py-10 text-gray-500">
-                                {searchTerm ? 'No bills found matching your search.' : 'No bills found.'}
+                                {searchTerm || hasActiveFilters ? 'No bills found matching your search/filters.' : 'No bills found.'}
                             </td></tr>
                         )}
                     </tbody>
@@ -492,7 +658,7 @@ function BillsList() {
             {pagination.totalPages > 1 && (
                 <div className="flex justify-between items-center mt-4">
                     <div className="text-sm text-gray-700">
-                        Showing {((currentPage - 1) * 10) + 1} to {Math.min(currentPage * 10, pagination.total)} of {pagination.total} bills
+                        Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, pagination.total)} of {pagination.total} bills
                     </div>
                     <div className="flex space-x-2">
                         <button 
