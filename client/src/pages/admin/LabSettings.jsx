@@ -377,20 +377,19 @@ function LabSettings() {
             {/* GST Number */}
             <div>
               <label htmlFor="gstNumber" className="block text-sm font-medium text-gray-700">
-                GST Number *
+                GST Number
               </label>
               <input
                 type="text"
                 id="gstNumber"
                 {...register('gstNumber', { 
-                  required: 'GST number is required',
                   pattern: {
                     value: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
-                    message: 'Please enter a valid GST number'
+                    message: 'Please enter a valid GST number format'
                   }
                 })}
                 className="form-input mt-1"
-                placeholder="Enter GST number (e.g., 27AAAAA0000A1Z5)"
+                placeholder="Enter GST number (optional, e.g., 27AAAAA0000A1Z5)"
               />
               {errors.gstNumber && (
                 <p className="mt-1 text-sm text-red-600">{errors.gstNumber.message}</p>

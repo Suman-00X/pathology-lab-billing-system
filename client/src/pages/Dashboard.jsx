@@ -232,32 +232,36 @@ function Dashboard() {
             </select>
           </div>
           
-          {dateRange === 'custom' && (
-            <div className="flex items-center space-x-2">
-              <input
-                type="date"
-                value={customDates.startDate}
-                onChange={(e) => setCustomDates(prev => ({ ...prev, startDate: e.target.value }))}
-                className="form-input text-sm"
-              />
-              <span className="text-gray-500">to</span>
-              <input
-                type="date"
-                value={customDates.endDate}
-                onChange={(e) => setCustomDates(prev => ({ ...prev, endDate: e.target.value }))}
-                className="form-input text-sm"
-              />
-            </div>
-          )}
-          
           <button
-            onClick={() => refresh()}
-            className="btn btn-secondary btn-sm"
+            onClick={refresh}
+            disabled={loading}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
           >
+            <Activity className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
+          
         </div>
       </div>
+
+      {/* Custom Date Range Inputs */}
+      {dateRange === 'custom' && (
+        <div className="flex items-center justify-end space-x-2">
+          <input
+            type="date"
+            value={customDates.startDate}
+            onChange={(e) => setCustomDates(prev => ({ ...prev, startDate: e.target.value }))}
+            className="form-input text-sm"
+          />
+          <span className="text-gray-500">to</span>
+          <input
+            type="date"
+            value={customDates.endDate}
+            onChange={(e) => setCustomDates(prev => ({ ...prev, endDate: e.target.value }))}
+            className="form-input text-sm"
+          />
+        </div>
+      )}
 
       {/* Primary Metrics Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">

@@ -417,19 +417,57 @@ export function ApiProvider({ children }) {
       getBills: (id, params, options) => fetchWithCache(`referred-doctors/${id}/bills?${JSON.stringify(params)}`, () => referredDoctorAPI.getBills(id, params), {}, options),
       create: async (data) => {
         const result = await referredDoctorAPI.create(data);
+        // Invalidate all related caches
         invalidateCache(null, 'referred-doctors');
+        invalidateCache(null, 'bills');
         toast.success('Doctor created successfully!');
         return result;
       },
       update: async (id, data) => {
         const result = await referredDoctorAPI.update(id, data);
+        
+        // Comprehensive cache invalidation for doctor updates
+        // Since doctor info is embedded in bills and shown in dashboard, we need to clear everything
         invalidateCache([`referred-doctors/${id}`], 'referred-doctors');
-        toast.success('Doctor updated successfully!');
+        invalidateCache(null, 'bills'); // Clear all bills cache since doctor info is embedded
+        invalidateCache(null, 'reports'); // Clear reports cache as they show doctor info
+        
+        // Clear dashboard and statistics caches since doctor analytics will change
+        const cacheKeys = Object.keys(state.cache);
+        const statsKeys = cacheKeys.filter(key => 
+          key.includes('bills/stats') || 
+          key.includes('summary') ||
+          key.includes('dashboard')
+        );
+        if (statsKeys.length > 0) {
+          invalidateCache(statsKeys);
+        }
+        
+        // Show enhanced success message if bills were updated
+        if (result.data?.billsUpdated) {
+          toast.success('Doctor updated successfully! All related bills have been updated.');
+        } else {
+          toast.success('Doctor updated successfully!');
+        }
+        
         return result;
       },
       delete: async (id) => {
         await referredDoctorAPI.delete(id);
+        // Comprehensive cache invalidation for doctor deletion
         invalidateCache([`referred-doctors/${id}`], 'referred-doctors');
+        invalidateCache(null, 'bills'); // Bills may reference this doctor
+        
+        // Clear dashboard stats
+        const cacheKeys = Object.keys(state.cache);
+        const statsKeys = cacheKeys.filter(key => 
+          key.includes('bills/stats') || 
+          key.includes('summary')
+        );
+        if (statsKeys.length > 0) {
+          invalidateCache(statsKeys);
+        }
+        
         toast.success('Doctor deleted successfully!');
       }
     },

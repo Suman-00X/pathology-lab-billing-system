@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { useReferredDoctors, useDoctorBills } from '../../hooks/useApiHooks';
-import { Users, Search, Edit, Eye, Plus, X, Calendar, FileText, PhoneCall, Award, IndianRupee, List, Trash2 } from 'lucide-react';
+import { useDoctors, useDoctorBills } from '../../hooks/useApiHooks';
+import { Users, Search, Edit, Eye, Plus, X, Calendar, FileText, PhoneCall, Award, IndianRupee, List, Trash2, Filter, SortAsc, SortDesc } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 function DoctorManagement() {
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchBy, setSearchBy] = useState('all');
+    const [sortBy, setSortBy] = useState('createdAt');
+    const [sortOrder, setSortOrder] = useState('desc');
     const [currentPage, setCurrentPage] = useState(1);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -13,6 +16,7 @@ function DoctorManagement() {
     const [selectedDoctor, setSelectedDoctor] = useState(null);
     const [showBills, setShowBills] = useState(false);
     const [billsPage, setBillsPage] = useState(1);
+    const [showFilters, setShowFilters] = useState(false);
 
     // Form state for add/edit
     const [formData, setFormData] = useState({
@@ -25,9 +29,12 @@ function DoctorManagement() {
     const doctorsParams = useMemo(() => ({
         page: currentPage,
         search: searchTerm,
+        searchBy,
+        sortBy,
+        sortOrder,
         startDate: startDate || undefined,
         endDate: endDate || undefined
-    }), [currentPage, searchTerm, startDate, endDate]);
+    }), [currentPage, searchTerm, searchBy, sortBy, sortOrder, startDate, endDate]);
 
     // API params for doctor bills
     const billsParams = useMemo(() => ({
@@ -36,11 +43,45 @@ function DoctorManagement() {
         endDate: endDate || undefined
     }), [billsPage, startDate, endDate]);
 
-    const { doctors, pagination, loading, error, createDoctor, updateDoctor, deleteDoctor } = useReferredDoctors(doctorsParams);
+    const { doctors, pagination, loading, error, createDoctor, updateDoctor, deleteDoctor } = useDoctors(doctorsParams);
     const { bills, doctor: billsDoctor, pagination: billsPagination, loading: billsLoading } = useDoctorBills(
         selectedDoctor?._id,
         billsParams
     );
+
+    const handleSearch = (e) => {
+        setSearchTerm(e.target.value);
+        setCurrentPage(1); // Reset to first page when searching
+    };
+
+    const handleSearchByChange = (e) => {
+        setSearchBy(e.target.value);
+        setCurrentPage(1);
+    };
+
+    const handleSortChange = (field) => {
+        if (sortBy === field) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortBy(field);
+            setSortOrder('desc');
+        }
+        setCurrentPage(1);
+    };
+
+    const searchOptions = [
+        { value: 'all', label: 'All Fields' },
+        { value: 'name', label: 'Doctor Name' },
+        { value: 'phone', label: 'Phone Number' }
+    ];
+
+    const sortOptions = [
+        { value: 'createdAt', label: 'Date Added' },
+        { value: 'name', label: 'Doctor Name' },
+        { value: 'phone', label: 'Phone Number' },
+        { value: 'totalAmount', label: 'Total Referral Amount' },
+        { value: 'billCount', label: 'Number of Referrals' }
+    ];
 
     const resetForm = () => {
         setFormData({ name: '', phone: '', qualification: '' });
@@ -230,17 +271,31 @@ function DoctorManagement() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-gray-800 flex items-center">
-                    <Users className="mr-3 text-primary-600" /> Referred Doctors Management
-                </h1>
-                <button
-                    onClick={() => setShowAddForm(true)}
-                    className="btn-primary flex items-center"
-                >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Doctor
-                </button>
+            {/* Header with Title and Add Button */}
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="flex-1">
+                    <h1 className="text-2xl font-bold text-gray-800 flex items-center">
+                        <Users className="mr-3 text-primary-600" /> Doctor Management
+                    </h1>
+                    <p className="text-gray-600 mt-1">Manage referring doctors with comprehensive analytics</p>
+                </div>
+                <div className="flex-shrink-0">
+                    <button
+                        onClick={() => setShowAddForm(true)}
+                        className="btn-primary flex items-center"
+                    >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Doctor
+                    </button>
+                </div>
+            </div>
+
+            {/* System Integration Notice */}
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                    <span className="font-medium">📋 System Integration:</span> When you update doctor information, 
+                    all related bills, reports, and dashboard analytics will be automatically updated across the entire system.
+                </p>
             </div>
 
             {/* Search and Filters */}
@@ -253,48 +308,104 @@ function DoctorManagement() {
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
                                 <input 
                                     type="text"
-                                    placeholder="Search doctors..."
+                                    placeholder={`Search by ${searchOptions.find(opt => opt.value === searchBy)?.label.toLowerCase() || 'all fields'}...`}
                                     value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    onChange={handleSearch}
                                     className="form-input pl-10 w-full"
                                 />
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Search By</label>
+                            <select
+                                value={searchBy}
+                                onChange={handleSearchByChange}
+                                className="form-input w-full"
+                            >
+                                {searchOptions.map(option => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+                            <select
+                                value={sortBy}
+                                onChange={(e) => {
+                                    setSortBy(e.target.value);
+                                    setSortOrder('desc'); // Reset to descending when changing sort field
+                                    setCurrentPage(1);
+                                }}
+                                className="form-input w-full"
+                            >
+                                {sortOptions.map(option => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
+                            <select
+                                value={sortOrder}
+                                onChange={(e) => {
+                                    setSortOrder(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="form-input w-full"
+                            >
+                                <option value="desc">Descending</option>
+                                <option value="asc">Ascending</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    {/* Date Range Filter Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-200">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date (for analytics)</label>
                             <div className="relative">
                                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18}/>
                                 <input
                                     type="date"
                                     value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
+                                    onChange={(e) => {
+                                        setStartDate(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
                                     className="form-input pl-10 w-full"
                                 />
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">End Date (for analytics)</label>
                             <div className="relative">
                                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18}/>
                                 <input
                                     type="date"
                                     value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
+                                    onChange={(e) => {
+                                        setEndDate(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
                                     className="form-input pl-10 w-full"
                                 />
                             </div>
                         </div>
-                        <div>
+                        <div className="col-span-2">
                             <label className="block text-sm font-medium text-gray-700 mb-1">&nbsp;</label>
                             <button
                                 onClick={() => {
                                     setStartDate('');
                                     setEndDate('');
                                     setSearchTerm('');
+                                    setSearchBy('all');
+                                    setSortBy('createdAt');
+                                    setSortOrder('desc');
+                                    setCurrentPage(1);
                                 }}
                                 className="form-input w-full bg-gray-100 hover:bg-gray-200 border-gray-300 text-gray-700 font-medium transition-colors duration-200 flex items-center justify-center"
                             >
-                                Clear Filters
+                                Clear All Filters
                             </button>
                         </div>
                     </div>
@@ -374,11 +485,51 @@ function DoctorManagement() {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Doctor Name</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                            <th 
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                                onClick={() => handleSortChange('name')}
+                            >
+                                <div className="flex items-center">
+                                    Doctor Name
+                                    {sortBy === 'name' && (
+                                        sortOrder === 'asc' ? <SortAsc className="ml-1 h-4 w-4" /> : <SortDesc className="ml-1 h-4 w-4" />
+                                    )}
+                                </div>
+                            </th>
+                            <th 
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                                onClick={() => handleSortChange('phone')}
+                            >
+                                <div className="flex items-center">
+                                    Phone
+                                    {sortBy === 'phone' && (
+                                        sortOrder === 'asc' ? <SortAsc className="ml-1 h-4 w-4" /> : <SortDesc className="ml-1 h-4 w-4" />
+                                    )}
+                                </div>
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Qualification</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Bills</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
+                            <th 
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                                onClick={() => handleSortChange('billCount')}
+                            >
+                                <div className="flex items-center">
+                                    Total Bills
+                                    {sortBy === 'billCount' && (
+                                        sortOrder === 'asc' ? <SortAsc className="ml-1 h-4 w-4" /> : <SortDesc className="ml-1 h-4 w-4" />
+                                    )}
+                                </div>
+                            </th>
+                            <th 
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                                onClick={() => handleSortChange('totalAmount')}
+                            >
+                                <div className="flex items-center">
+                                    Total Amount
+                                    {sortBy === 'totalAmount' && (
+                                        sortOrder === 'asc' ? <SortAsc className="ml-1 h-4 w-4" /> : <SortDesc className="ml-1 h-4 w-4" />
+                                    )}
+                                </div>
+                            </th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                     </thead>
@@ -422,7 +573,9 @@ function DoctorManagement() {
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="6" className="text-center py-10 text-gray-500">No doctors found.</td></tr>
+                            <tr><td colSpan="6" className="text-center py-10 text-gray-500">
+                                {searchTerm ? 'No doctors found matching your search.' : 'No doctors found.'}
+                            </td></tr>
                         )}
                     </tbody>
                 </table>
@@ -431,21 +584,28 @@ function DoctorManagement() {
             {/* Pagination */}
             {pagination.totalPages > 1 && (
                 <div className="flex justify-between items-center">
-                    <button 
-                        onClick={() => setCurrentPage(p => p - 1)} 
-                        disabled={currentPage === 1}
-                        className="btn-secondary"
-                    >
-                        Previous
-                    </button>
-                    <span>Page {pagination.currentPage} of {pagination.totalPages}</span>
-                    <button 
-                        onClick={() => setCurrentPage(p => p + 1)} 
-                        disabled={currentPage === pagination.totalPages}
-                        className="btn-secondary"
-                    >
-                        Next
-                    </button>
+                    <div className="text-sm text-gray-700">
+                        Showing {((currentPage - 1) * 10) + 1} to {Math.min(currentPage * 10, pagination.total)} of {pagination.total} doctors
+                    </div>
+                    <div className="flex space-x-2">
+                        <button 
+                            onClick={() => setCurrentPage(p => p - 1)} 
+                            disabled={currentPage === 1}
+                            className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Previous
+                        </button>
+                        <span className="px-4 py-2 text-sm text-gray-700">
+                            Page {currentPage} of {pagination.totalPages}
+                        </span>
+                        <button 
+                            onClick={() => setCurrentPage(p => p + 1)} 
+                            disabled={currentPage === pagination.totalPages}
+                            className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

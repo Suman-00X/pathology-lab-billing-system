@@ -376,7 +376,7 @@ npm run client
 3. Configure your lab details including:
    - Lab name and logo upload
    - Address and contact information
-   - GST number and pathologist name
+   - GST number (optional) and pathologist name
 
 ### 2. Configure Test Groups
 1. Go to **Admin > Test Groups**
@@ -438,7 +438,7 @@ npm run client
 
 ### Lab Model
 - Basic information (name, logo, address)
-- GST number and pathologist details
+- GST number (optional) and pathologist details
 - Contact information with validation
 
 ### TestGroup Model

@@ -30,8 +30,8 @@ const labSchema = new mongoose.Schema({
   },
   gstNumber: {
     type: String,
-    required: true,
     unique: true,
+    sparse: true, // Allows multiple null/undefined values while maintaining uniqueness for actual values
     trim: true
   },
   pathologistName: {

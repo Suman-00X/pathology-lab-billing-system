@@ -2,6 +2,7 @@ import Bill from '../models/Bill.js';
 import TestGroup from '../models/TestGroup.js';
 import Report from '../models/Report.js';
 import Settings from '../models/Settings.js';
+import ReferredDoctor from '../models/ReferredDoctor.js';
 import { referredDoctorController } from './referredDoctorController.js';
 
 export const billController = {
@@ -246,34 +247,236 @@ export const billController = {
   // Get all bills with pagination and filters
   async getAllBills(req, res) {
     try {
-      const { page = 1, limit = 10, status, paymentStatus, search } = req.query;
+      const { 
+        page = 1, 
+        limit = 10, 
+        status, 
+        paymentStatus, 
+        search,
+        searchBy = 'all', // 'all', 'patientName', 'patientPhone', 'doctorName', 'testGroup', 'address'
+        sortBy = 'billDate', // 'billDate', 'patientName', 'doctorName', 'finalAmount', 'billNumber', 'paymentStatus'
+        sortOrder = 'desc', // 'asc' or 'desc'
+        // New filter parameters
+        startDate,
+        endDate,
+        amountFilter, // 'greater', 'less', 'equal'
+        amountValue,
+        doctorId
+      } = req.query;
 
       let filter = {};
       if (status) filter.status = status;
       if (paymentStatus) filter.paymentStatus = paymentStatus;
-      if (search) {
-        filter.$or = [
-          { billNumber: { $regex: search, $options: 'i' } },
-          { 'patient.name': { $regex: search, $options: 'i' } },
-          { 'referredBy.doctorName': { $regex: search, $options: 'i' } }
-        ];
+      
+      // Date range filter
+      if (startDate || endDate) {
+        filter.billDate = {};
+        if (startDate) {
+          const start = new Date(startDate);
+          start.setHours(0, 0, 0, 0);
+          filter.billDate.$gte = start;
+        }
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          filter.billDate.$lte = end;
+        }
+      }
+
+      // Amount filter
+      if (amountFilter && amountValue) {
+        const amount = parseFloat(amountValue);
+        if (!isNaN(amount)) {
+          if (amountFilter === 'greater') {
+            filter.finalAmount = { $gt: amount };
+          } else if (amountFilter === 'less') {
+            filter.finalAmount = { $lt: amount };
+          } else if (amountFilter === 'equal') {
+            filter.finalAmount = amount;
+          }
+        }
+      }
+
+      // Doctor filter
+      if (doctorId && doctorId !== 'all') {
+        // We need to find the doctor first to get their details
+        const doctor = await ReferredDoctor.findById(doctorId);
+        if (doctor) {
+          filter.$and = [
+            { 'referredBy.doctorName': doctor.name },
+            { 'referredBy.phone': doctor.phone }
+          ];
+        }
+      }
+      
+      // Enhanced search functionality
+      if (search && search.trim()) {
+        const searchTerm = search.trim();
+        const searchRegex = { $regex: searchTerm, $options: 'i' };
+        
+        // Combine search with existing filters using $and if other filters exist
+        const searchFilter = {};
+        
+        if (searchBy === 'all') {
+          // Search across all fields
+          searchFilter.$or = [
+            { 'patient.name': searchRegex },
+            { 'patient.phone': searchRegex },
+            { 'patient.address.street': searchRegex },
+            { 'patient.address.city': searchRegex },
+            { 'patient.address.state': searchRegex },
+            { 'patient.address.pincode': searchRegex },
+            { 'referredBy.doctorName': searchRegex },
+            { 'referredBy.phone': searchRegex },
+            { billNumber: searchRegex }
+          ];
+        } else if (searchBy === 'patientName') {
+          searchFilter['patient.name'] = searchRegex;
+        } else if (searchBy === 'patientPhone') {
+          searchFilter['patient.phone'] = searchRegex;
+        } else if (searchBy === 'doctorName') {
+          searchFilter.$or = [
+            { 'referredBy.doctorName': searchRegex },
+            { 'referredBy.phone': searchRegex }
+          ];
+        } else if (searchBy === 'address') {
+          searchFilter.$or = [
+            { 'patient.address.street': searchRegex },
+            { 'patient.address.city': searchRegex },
+            { 'patient.address.state': searchRegex },
+            { 'patient.address.pincode': searchRegex }
+          ];
+        }
+
+        // Combine search filter with existing filters
+        if (Object.keys(filter).length > 0) {
+          filter = { $and: [filter, searchFilter] };
+        } else {
+          filter = searchFilter;
+        }
+      }
+
+      // Build sort object
+      let sortObject = {};
+      if (sortBy === 'billDate') {
+        sortObject.billDate = sortOrder === 'asc' ? 1 : -1;
+      } else if (sortBy === 'patientName') {
+        sortObject['patient.name'] = sortOrder === 'asc' ? 1 : -1;
+      } else if (sortBy === 'doctorName') {
+        sortObject['referredBy.doctorName'] = sortOrder === 'asc' ? 1 : -1;
+      } else if (sortBy === 'finalAmount') {
+        sortObject.finalAmount = sortOrder === 'asc' ? 1 : -1;
+      } else if (sortBy === 'billNumber') {
+        sortObject.billNumber = sortOrder === 'asc' ? 1 : -1;
+      } else if (sortBy === 'paymentStatus') {
+        sortObject.paymentStatus = sortOrder === 'asc' ? 1 : -1;
+      } else {
+        // Default sort
+        sortObject.billDate = -1;
       }
 
       const skip = (page - 1) * limit;
-      
-      const bills = await Bill.find(filter)
-        .populate({ path: 'testGroups', select: 'name price' })
-        .sort({ billDate: -1 })
-        .skip(skip)
-        .limit(parseInt(limit));
 
-      const total = await Bill.countDocuments(filter);
+      // For test group search, we need to use aggregation
+      let bills;
+      let total;
+
+      if (search && searchBy === 'testGroup') {
+        const searchRegex = { $regex: search.trim(), $options: 'i' };
+        
+        // Use aggregation to search in populated test groups
+        const aggregationPipeline = [
+          {
+            $lookup: {
+              from: 'testgroups',
+              localField: 'testGroups',
+              foreignField: '_id',
+              as: 'populatedTestGroups'
+            }
+          },
+          {
+            $match: {
+              ...filter,
+              'populatedTestGroups.name': searchRegex
+            }
+          },
+          {
+            $sort: sortObject
+          },
+          {
+            $skip: skip
+          },
+          {
+            $limit: parseInt(limit)
+          },
+          {
+            $lookup: {
+              from: 'testgroups',
+              localField: 'testGroups',
+              foreignField: '_id',
+              as: 'testGroups'
+            }
+          },
+          {
+            $project: {
+              populatedTestGroups: 0 // Remove the temporary field
+            }
+          }
+        ];
+
+        bills = await Bill.aggregate(aggregationPipeline);
+        
+        // Get total count for pagination
+        const countPipeline = [
+          {
+            $lookup: {
+              from: 'testgroups',
+              localField: 'testGroups',
+              foreignField: '_id',
+              as: 'populatedTestGroups'
+            }
+          },
+          {
+            $match: {
+              ...filter,
+              'populatedTestGroups.name': searchRegex
+            }
+          },
+          {
+            $count: "total"
+          }
+        ];
+        
+        const countResult = await Bill.aggregate(countPipeline);
+        total = countResult.length > 0 ? countResult[0].total : 0;
+      } else {
+        // Regular query for other searches
+        bills = await Bill.find(filter)
+          .populate({ path: 'testGroups', select: 'name price' })
+          .sort(sortObject)
+          .skip(skip)
+          .limit(parseInt(limit));
+
+        total = await Bill.countDocuments(filter);
+      }
 
       res.json({
         bills,
         totalPages: Math.ceil(total / limit),
         currentPage: parseInt(page),
-        total
+        total,
+        searchBy,
+        sortBy,
+        sortOrder,
+        appliedFilters: {
+          startDate,
+          endDate,
+          amountFilter,
+          amountValue,
+          doctorId,
+          search,
+          searchBy
+        }
       });
     } catch (error) {
       res.status(500).json({ message: 'Error fetching bills', error: error.message });

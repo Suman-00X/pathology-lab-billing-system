@@ -2,25 +2,83 @@ import ReferredDoctor from '../models/ReferredDoctor.js';
 import Bill from '../models/Bill.js';
 
 export const referredDoctorController = {
+  // Helper function to update all bills that reference a doctor
+  async updateBillsForDoctor(oldPhone, newDoctorData) {
+    try {
+      const { name, phone, qualification } = newDoctorData;
+      
+      // Update all bills that reference this doctor by old phone number
+      const updateResult = await Bill.updateMany(
+        { 'referredBy.phone': oldPhone },
+        {
+          $set: {
+            'referredBy.doctorName': name,
+            'referredBy.phone': phone,
+            'referredBy.qualification': qualification
+          }
+        }
+      );
+
+      console.log(`Updated ${updateResult.modifiedCount} bills for doctor: ${name}`);
+      return updateResult;
+    } catch (error) {
+      console.error('Error updating bills for doctor:', error);
+      throw error;
+    }
+  },
   // Get all doctors with optional search and pagination
   async getAllDoctors(req, res) {
     try {
-      const { page = 1, limit = 10, search, startDate, endDate } = req.query;
+      const { 
+        page = 1, 
+        limit = 10, 
+        search, 
+        searchBy = 'all', // 'all', 'name', 'phone'
+        sortBy = 'createdAt', // 'createdAt', 'name', 'phone', 'totalAmount', 'billCount'
+        sortOrder = 'desc', // 'asc' or 'desc'
+        startDate, 
+        endDate 
+      } = req.query;
       
       let filter = {};
-      if (search) {
-        filter.$or = [
-          { name: { $regex: search, $options: 'i' } },
-          { phone: { $regex: search, $options: 'i' } },
-          { qualification: { $regex: search, $options: 'i' } }
-        ];
+      
+      // Enhanced search functionality
+      if (search && search.trim()) {
+        const searchTerm = search.trim();
+        const searchRegex = { $regex: searchTerm, $options: 'i' };
+        
+        if (searchBy === 'all') {
+          // Search across all fields
+          filter.$or = [
+            { name: searchRegex },
+            { phone: searchRegex },
+            { qualification: searchRegex }
+          ];
+        } else if (searchBy === 'name') {
+          filter.name = searchRegex;
+        } else if (searchBy === 'phone') {
+          filter.phone = searchRegex;
+        }
       }
 
       const skip = (page - 1) * limit;
       
+      // Build sort object for doctors query
+      let doctorSortObject = {};
+      if (sortBy === 'createdAt') {
+        doctorSortObject.createdAt = sortOrder === 'asc' ? 1 : -1;
+      } else if (sortBy === 'name') {
+        doctorSortObject.name = sortOrder === 'asc' ? 1 : -1;
+      } else if (sortBy === 'phone') {
+        doctorSortObject.phone = sortOrder === 'asc' ? 1 : -1;
+      } else {
+        // Default sort by creation date
+        doctorSortObject.createdAt = -1;
+      }
+      
       // Get doctors with pagination
       const doctors = await ReferredDoctor.find(filter)
-        .sort({ name: 1 })
+        .sort(doctorSortObject)
         .skip(skip)
         .limit(parseInt(limit));
 
@@ -65,11 +123,27 @@ export const referredDoctorController = {
         })
       );
 
+      // Apply sorting based on calculated fields if needed
+      if (sortBy === 'totalAmount') {
+        doctorsWithTotals.sort((a, b) => {
+          const comparison = a.totalReferredAmount - b.totalReferredAmount;
+          return sortOrder === 'asc' ? comparison : -comparison;
+        });
+      } else if (sortBy === 'billCount') {
+        doctorsWithTotals.sort((a, b) => {
+          const comparison = a.totalBillsReferred - b.totalBillsReferred;
+          return sortOrder === 'asc' ? comparison : -comparison;
+        });
+      }
+
       res.json({
         doctors: doctorsWithTotals,
         totalPages: Math.ceil(total / limit),
         currentPage: parseInt(page),
-        total
+        total,
+        searchBy,
+        sortBy,
+        sortOrder
       });
     } catch (error) {
       res.status(500).json({ message: 'Error fetching doctors', error: error.message });
@@ -121,35 +195,99 @@ export const referredDoctorController = {
     try {
       const { name, phone, qualification } = req.body;
       
-      // Check if another doctor has this phone number
-      const existingDoctor = await ReferredDoctor.findOne({ 
-        phone, 
-        _id: { $ne: req.params.id } 
-      });
-      if (existingDoctor) {
-        return res.status(400).json({ message: 'Another doctor with this phone number already exists' });
-      }
-
-      const doctor = await ReferredDoctor.findByIdAndUpdate(
-        req.params.id,
-        {
-          name: name.trim(),
-          phone: phone.trim(),
-          qualification: qualification?.trim() || ''
-        },
-        { new: true, runValidators: true }
-      );
-
-      if (!doctor) {
+      // Get the existing doctor to check for mobile number changes
+      const existingDoctor = await ReferredDoctor.findById(req.params.id);
+      if (!existingDoctor) {
         return res.status(404).json({ message: 'Doctor not found' });
       }
 
-      res.json({ message: 'Doctor updated successfully', doctor });
+      const oldPhone = existingDoctor.phone;
+      const newPhone = phone.trim();
+      
+      // If mobile number is changing, we need to create a new doctor and update bills
+      if (oldPhone !== newPhone) {
+        // Check if another doctor already has this new phone number
+        const doctorWithNewPhone = await ReferredDoctor.findOne({ 
+          phone: newPhone, 
+          _id: { $ne: req.params.id } 
+        });
+        
+        if (doctorWithNewPhone) {
+          return res.status(400).json({ 
+            message: 'Another doctor with this phone number already exists' 
+          });
+        }
+
+        // Create new doctor with new mobile number
+        const newDoctor = new ReferredDoctor({
+          name: name.trim(),
+          phone: newPhone,
+          qualification: qualification?.trim() || ''
+        });
+        await newDoctor.save();
+
+        // Update all bills that reference the old doctor to point to new doctor
+        await this.updateBillsForDoctor(oldPhone, {
+          name: name.trim(),
+          phone: newPhone,
+          qualification: qualification?.trim() || ''
+        });
+
+        // Keep the old doctor record for historical purposes (don't delete)
+        // but you could optionally mark it as inactive
+        
+        res.json({ 
+          message: 'New doctor created and all bills updated successfully', 
+          doctor: newDoctor,
+          billsUpdated: true
+        });
+      } else {
+        // Mobile number is not changing, just update the existing doctor
+        // Check if another doctor has this phone number
+        const existingDoctorWithPhone = await ReferredDoctor.findOne({ 
+          phone: newPhone, 
+          _id: { $ne: req.params.id } 
+        });
+        if (existingDoctorWithPhone) {
+          return res.status(400).json({ 
+            message: 'Another doctor with this phone number already exists' 
+          });
+        }
+
+        // Update the existing doctor
+        const updatedDoctor = await ReferredDoctor.findByIdAndUpdate(
+          req.params.id,
+          {
+            name: name.trim(),
+            phone: newPhone,
+            qualification: qualification?.trim() || ''
+          },
+          { new: true, runValidators: true }
+        );
+
+        // Update all bills that reference this doctor
+        await this.updateBillsForDoctor(oldPhone, {
+          name: name.trim(),
+          phone: newPhone,
+          qualification: qualification?.trim() || ''
+        });
+
+        res.json({ 
+          message: 'Doctor updated successfully and all bills updated', 
+          doctor: updatedDoctor,
+          billsUpdated: true
+        });
+      }
     } catch (error) {
       if (error.code === 11000) {
-        return res.status(400).json({ message: 'Another doctor with this phone number already exists' });
+        return res.status(400).json({ 
+          message: 'Another doctor with this phone number already exists' 
+        });
       }
-      res.status(500).json({ message: 'Error updating doctor', error: error.message });
+      res.status(500).json({ 
+        message: 'Error updating doctor', 
+        error: error.message 
+      });
     }
   },
 
