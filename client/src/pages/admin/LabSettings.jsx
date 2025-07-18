@@ -46,7 +46,7 @@ function LabSettings() {
       setValue('contactInfo.email', lab.contactInfo?.email || '');
       
       if (lab.logo) {
-        setCurrentLogo(`http://localhost:5000${lab.logo}`);
+        setCurrentLogo(`https://pathology-lab-billing-system.onrender.com${lab.logo}`);
       }
     }
   }, [lab, setValue]);

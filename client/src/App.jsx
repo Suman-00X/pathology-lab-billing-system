@@ -12,10 +12,18 @@ import BillDetails from './pages/billing/BillDetails'
 import EditBill from './pages/billing/EditBill';
 import AboutUs from './pages/AboutUs'
 import ReportDetails from './pages/ReportDetails';
+import useFavicon from './hooks/useFavicon'
+
+// Component to handle favicon inside ApiProvider context
+function FaviconHandler() {
+  useFavicon();
+  return null;
+}
 
 function App() {
   return (
     <ApiProvider>
+      <FaviconHandler />
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'https://pathology-lab-billing-system.onrender.com/api';
 
 // Create axios instance
 const api = axios.create({

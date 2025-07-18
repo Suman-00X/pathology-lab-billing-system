@@ -28,7 +28,6 @@ const referredDoctorSchema = new mongoose.Schema({
 
 // Index for faster searches
 referredDoctorSchema.index({ name: 'text', phone: 'text' });
-referredDoctorSchema.index({ phone: 1 });
 
 const ReferredDoctor = mongoose.model('ReferredDoctor', referredDoctorSchema);
 
