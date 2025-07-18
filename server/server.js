@@ -9,6 +9,10 @@ import { config, validateEnvironment } from './config/config.js';
 // Load environment variables from .env file
 dotenv.config();
 
+console.log('🚀 Starting Pathology Lab Billing Server...');
+console.log('Environment:', process.env.NODE_ENV || 'development');
+console.log('Port:', process.env.PORT || 5000);
+
 // Validate environment configuration
 validateEnvironment();
 
@@ -26,7 +30,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Connect to database
-await connectDB();
+try {
+  console.log('📊 Connecting to database...');
+  await connectDB();
+  console.log('✅ Database connected successfully');
+} catch (error) {
+  console.error('❌ Database connection failed:', error.message);
+  process.exit(1);
+}
 
 const app = express();
 
@@ -75,6 +86,33 @@ app.get('/api/health', (req, res) => {
 
 const PORT = config.PORT;
 
-app.listen(PORT, () => {
-  console.log("App runnung on port : ", PORT)
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🎉 Server is running on port ${PORT}`);
+  console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`📊 Environment: ${config.NODE_ENV}`);
+}).on('error', (err) => {
+  console.error('❌ Server startup error:', err);
+  process.exit(1);
+});
+
+// Global error handlers
+process.on('uncaughtException', (err) => {
+  console.error('💥 Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('👋 SIGTERM received. Shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('👋 SIGINT received. Shutting down gracefully...');
+  process.exit(0);
 }); 
