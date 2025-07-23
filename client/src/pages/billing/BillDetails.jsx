@@ -57,6 +57,7 @@ function BillDetails() {
                     .status-paid { background-color: #d4edda; color: #155724; }
                     .status-partial { background-color: #fff3cd; color: #856404; }
                     .status-pending { background-color: #f8d7da; color: #721c24; }
+                    .payment-method { font-size: 12px; font-weight: 500; color: #374151; }
                     .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
                     @media print {
                         body { margin: 0; }
@@ -149,6 +150,10 @@ function BillDetails() {
                     <span class="label">Payment Status:</span> 
                     <span class="status ${bill.paymentStatus === 'Paid' ? 'status-paid' : bill.paymentStatus === 'Partially Paid' ? 'status-partial' : 'status-pending'}">${bill.paymentStatus}</span>
                 </div>
+                <div class="row">
+                    <span class="label">Payment Method:</span> 
+                    <span class="payment-method">${bill.isPaymentModeEnabled ? 'Payment Modes' : 'Direct Payment'}</span>
+                </div>
             </div>
 
             <div class="footer">
@@ -205,14 +210,21 @@ function BillDetails() {
                         <InfoRow label="Final Amount" value={`₹${bill.finalAmount.toFixed(2)}`} />
                         <InfoRow label="Paid Amount" value={`₹${bill.paidAmount.toFixed(2)}`} />
                         <InfoRow label="Due Amount" value={`₹${(bill.dues !== undefined ? bill.dues : (bill.finalAmount - bill.paidAmount)).toFixed(2)}`} />
-                        <div className="pt-2">
-                             <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                                bill.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' :
-                                bill.paymentStatus === 'Partially Paid' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-red-100 text-red-800'
-                            }`}>
-                                {bill.paymentStatus}
-                            </span>
+                        <div className="pt-2 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
+                                    bill.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' :
+                                    bill.paymentStatus === 'Partially Paid' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-red-100 text-red-800'
+                                }`}>
+                                    {bill.paymentStatus}
+                                </span>
+                                <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                    bill.isPaymentModeEnabled ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                    {bill.isPaymentModeEnabled ? 'Payment Modes' : 'Direct Payment'}
+                                </span>
+                            </div>
                         </div>
                     </InfoCard>
                     <InfoCard title="Dates">

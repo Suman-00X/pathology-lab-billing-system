@@ -465,7 +465,7 @@ export function useSearchDoctor() {
     } finally {
       setLoading(false);
     }
-  }, [api.referredDoctors]);
+  }, []); // Remove api.referredDoctors dependency to prevent unnecessary re-renders
 
   return { searchByMobile, loading, error };
 }

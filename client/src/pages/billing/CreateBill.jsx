@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import { Plus, X, Trash2, CreditCard, ChevronDown, Check } from 'lucide-react';
 import { useBills, useTestGroups, usePaymentModes, useSettings, useSearchDoctor } from '../../hooks/useApiHooks';
@@ -180,8 +180,8 @@ function CreateBill() {
     const navigate = useNavigate();
 
     // State for doctor auto-search
-    const [doctorSearched, setDoctorSearched] = useState(false);
     const [foundDoctor, setFoundDoctor] = useState(null);
+    const lastSearchedPhoneRef = useRef('');
 
     // Utility function for safe numeric parsing
     const parseAmount = (value) => {
@@ -191,12 +191,17 @@ function CreateBill() {
 
     // Auto-search doctor by mobile number
     const handleDoctorPhoneChange = useCallback(async (phoneNumber) => {
-        // Reset previous search results
-        setDoctorSearched(false);
-        setFoundDoctor(null);
-
         // Only search when we have exactly 10 digits
         if (phoneNumber && phoneNumber.length === 10 && /^[0-9]{10}$/.test(phoneNumber)) {
+            // Check if we've already searched this phone number
+            if (lastSearchedPhoneRef.current === phoneNumber) {
+                return;
+            }
+            
+            // Reset previous search results
+            setFoundDoctor(null);
+            lastSearchedPhoneRef.current = phoneNumber;
+
             try {
                 const doctor = await searchByMobile(phoneNumber);
                 if (doctor) {
@@ -205,32 +210,51 @@ function CreateBill() {
                     setValue('doctorQualification', doctor.qualification || '');
                     toast.success(`Doctor found: ${doctor.name}`);
                 } else {
-                    toast.info('No doctor found with this mobile number. You can add new doctor details.');
+                    toast('No doctor found with this mobile number. You can add new doctor details.');
                 }
-                setDoctorSearched(true);
             } catch (error) {
                 console.error('Error searching doctor:', error);
-                setDoctorSearched(true);
+                if (error.message?.includes('timeout')) {
+                    toast.error('Search timed out. Please try again.');
+                } else {
+                    toast.error('Error searching for doctor. Please try again.');
+                }
             }
+        } else {
+            // Reset search state when phone number is invalid
+            setFoundDoctor(null);
+            lastSearchedPhoneRef.current = '';
         }
     }, [searchByMobile, setValue]);
 
+    // Add debounce for doctor phone changes
+    const [debouncedDoctorPhone, setDebouncedDoctorPhone] = useState('');
 
-    const selectedGroupIds = watch('testGroups', []);
-    const toBePaidAmount = watch('toBePaidAmount', 0);
-    const paymentDetails = watch('paymentDetails', []);
-    const doctorPhone = watch('doctorPhone', '');
-
-    // Watch for doctor phone changes and trigger search
+    // Debounce doctor phone changes
     useEffect(() => {
-        if (doctorPhone && doctorPhone.length === 10 && /^[0-9]{10}$/.test(doctorPhone)) {
-            handleDoctorPhoneChange(doctorPhone);
+        const timer = setTimeout(() => {
+            setDebouncedDoctorPhone(doctorPhone);
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timer);
+    }, [doctorPhone]);
+
+    // Watch for debounced doctor phone changes and trigger search
+    useEffect(() => {
+        if (debouncedDoctorPhone && debouncedDoctorPhone.length === 10 && /^[0-9]{10}$/.test(debouncedDoctorPhone)) {
+            handleDoctorPhoneChange(debouncedDoctorPhone);
         } else {
             // Reset search state when phone number is invalid
-            setDoctorSearched(false);
             setFoundDoctor(null);
+            lastSearchedPhoneRef.current = '';
         }
-    }, [doctorPhone, handleDoctorPhoneChange]);
+    }, [debouncedDoctorPhone, handleDoctorPhoneChange]);
+    
+    const selectedGroupIds = watch('testGroups', []);
+    const toBePaidAmount = watch('toBePaidAmount', 0);
+    const paidAmount = watch('paidAmount', 0);
+    const paymentDetails = watch('paymentDetails', []);
+    const doctorPhone = watch('doctorPhone', '');
     
     // Watch all payment amounts specifically for real-time updates
     const watchedPaymentAmounts = watch(
@@ -272,15 +296,23 @@ function CreateBill() {
     // Calculate total payments and dues
     const totalPayments = useMemo(() => {
         const paymentsToUse = watchedPaymentDetails.length > 0 ? watchedPaymentDetails : paymentDetails;
-        return paymentsToUse.reduce((sum, payment) => {
-            const amount = parseAmount(payment?.amount);
-            return parseAmount(sum) + (amount > 0 ? amount : 0);
-        }, 0);
+        return paymentsToUse
+            .filter(p => p.mode && p.mode.trim() !== '' && parseFloat(p.amount) > 0)
+            .reduce((sum, payment) => {
+                const amount = parseAmount(payment?.amount);
+                return parseAmount(sum) + amount;
+            }, 0);
     }, [paymentDetails, watchedPaymentAmounts, watchedPaymentDetails, forceUpdateCounter]);
 
     const duesAmount = useMemo(() => {
-        return Math.max(0, finalAmount - totalPayments);
-    }, [finalAmount, totalPayments]);
+        if (paymentModeEnabled) {
+            // When payment mode is enabled, dues = finalAmount - totalPayments
+            return Math.max(0, finalAmount - totalPayments);
+        } else {
+            // When payment mode is disabled, dues = finalAmount - paidAmount
+            return Math.max(0, finalAmount - parseFloat(paidAmount || 0));
+        }
+    }, [finalAmount, totalPayments, paidAmount, paymentModeEnabled]);
 
     // Get available payment modes (exclude already used ones)
     const usedPaymentModeIds = paymentDetails
@@ -294,6 +326,14 @@ function CreateBill() {
             setValue('toBePaidAmount', totalWithTax.toFixed(2));
         }
     }, [totalWithTax, toBePaidAmount, setValue]);
+
+    // Watch for paidAmount changes to trigger re-calculation
+    useEffect(() => {
+        if (!paymentModeEnabled && paidAmount !== undefined) {
+            // Force re-calculation when paidAmount changes
+            forceUpdate();
+        }
+    }, [paidAmount, paymentModeEnabled, forceUpdate]);
 
     const addPaymentDetail = () => {
         if (availablePaymentModes.length === 0) {
@@ -312,7 +352,7 @@ function CreateBill() {
     const onSubmit = async (data) => {
         // Validate payment details if payment mode is enabled
         if (paymentModeEnabled && paymentDetails.length > 0) {
-            const hasInvalidPayments = paymentDetails.some(p => !p.mode || !p.amount || parseFloat(p.amount) <= 0);
+            const hasInvalidPayments = paymentDetails.some(p => !p.mode || p.mode.trim() === '' || !p.amount || parseFloat(p.amount) <= 0);
             if (hasInvalidPayments) {
                 toast.error('Please fill all payment details with valid amounts');
                 return;
@@ -344,8 +384,10 @@ function CreateBill() {
             },
             testGroups: data.testGroups,
             toBePaidAmount: finalAmount,
-            paymentDetails: paymentModeEnabled ? data.paymentDetails.filter(p => p.mode && p.amount) : [],
-            dues: paymentModeEnabled ? Number(duesAmount.toFixed(2)) : Math.max(0, finalAmount - parseFloat(data.toBePaidAmount || 0)),
+            ...(paymentModeEnabled ? {} : { paidAmount: parseFloat(data.paidAmount || 0) }),
+            paymentDetails: paymentModeEnabled ? data.paymentDetails.filter(p => p.mode && p.mode.trim() !== '' && parseFloat(p.amount) > 0) : [],
+            dues: Number(duesAmount.toFixed(2)),
+            isPaymentModeEnabled: paymentModeEnabled,
             notes: data.notes || '',
         };
 
@@ -505,10 +547,10 @@ function CreateBill() {
                                 )}
                             </div>
                             {errors.doctorPhone && <span className="text-red-500 text-sm">{errors.doctorPhone.message}</span>}
-                            {doctorSearched && foundDoctor && (
+                            {foundDoctor && (
                                 <span className="text-green-600 text-sm">✓ Doctor found and details filled</span>
                             )}
-                            {doctorSearched && !foundDoctor && (
+                            {lastSearchedPhoneRef.current && !foundDoctor && (
                                 <span className="text-blue-600 text-sm">ℹ New doctor - please fill details below</span>
                             )}
                         </div>
@@ -595,13 +637,13 @@ function CreateBill() {
                         
                         <div className="flex justify-between items-center">
                             <label htmlFor="toBePaidAmount" className="font-medium">
-                                {paymentModeEnabled ? 'To be Paid Amount:' : 'Paid Amount:'}
+                                To be Paid Amount:
                             </label>
                             <div className="flex flex-col items-end">
                                 <input 
                                     id="toBePaidAmount"
                                     {...register('toBePaidAmount', { 
-                                        required: paymentModeEnabled ? 'To be paid amount is required' : 'Paid amount is required',
+                                        required: 'To be paid amount is required',
                                         min: { value: 0.01, message: 'Amount must be greater than 0' },
                                         max: { value: totalWithTax, message: 'Amount cannot be greater than total' }
                                     })} 
@@ -626,15 +668,52 @@ function CreateBill() {
                             <span className="text-primary-600">₹{finalAmount.toFixed(2)}</span>
                         </div>
                         
-                        <div className="flex justify-between items-center text-green-600 font-medium">
-                            <span>Paid Amount:</span>
-                            <span>₹{totalPayments.toFixed(2)}</span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center text-orange-600 font-medium">
-                            <span>Dues Amount:</span>
-                            <span>₹{duesAmount.toFixed(2)}</span>
-                        </div>
+                        {paymentModeEnabled ? (
+                            <>
+                                <div className="flex justify-between items-center text-green-600 font-medium">
+                                    <span>Paid Amount:</span>
+                                    <span>₹{totalPayments.toFixed(2)}</span>
+                                </div>
+                                
+                                <div className="flex justify-between items-center text-orange-600 font-medium">
+                                    <span>Dues Amount:</span>
+                                    <span>₹{duesAmount.toFixed(2)}</span>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="flex justify-between items-center">
+                                    <label htmlFor="paidAmount" className="font-medium">
+                                        Paid Amount:
+                                    </label>
+                                    <div className="flex flex-col items-end">
+                                        <input 
+                                            id="paidAmount"
+                                            {...register('paidAmount', { 
+                                                required: 'Paid amount is required',
+                                                min: { value: 0, message: 'Amount cannot be negative' },
+                                                max: { value: finalAmount, message: 'Amount cannot exceed final amount' }
+                                            })} 
+                                            type="number" 
+                                            step="0.01"
+                                            className="form-input w-32 text-right" 
+                                            placeholder="0.00"
+                                        />
+                                        {errors.paidAmount && <span className="text-red-500 text-xs mt-1">{errors.paidAmount.message}</span>}
+                                    </div>
+                                </div>
+                                
+                                <div className="flex justify-between items-center text-green-600 font-medium">
+                                    <span>Paid Amount:</span>
+                                    <span>₹{parseFloat(paidAmount || 0).toFixed(2)}</span>
+                                </div>
+                                
+                                <div className="flex justify-between items-center text-orange-600 font-medium">
+                                    <span>Dues Amount:</span>
+                                    <span>₹{duesAmount.toFixed(2)}</span>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 

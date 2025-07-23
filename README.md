@@ -1,6 +1,6 @@
 # Pathology Lab Billing Software
 
-A comprehensive MERN stack application for managing pathology lab operations including billing, test management, patient records, and doctor referral tracking.
+A comprehensive MERN stack application for managing pathology lab operations including billing, test management, patient records, doctor referral tracking, and advanced payment mode management.
 
 ## Features
 
@@ -9,6 +9,8 @@ A comprehensive MERN stack application for managing pathology lab operations inc
   - Configure lab details with logo upload support
   - Address, GST number, and pathologist information
   - Contact information management
+  - **Payment Mode Configuration**: Enable/disable multiple payment methods
+  - **Tax Settings**: Configurable tax percentage with enable/disable option
 - **Test Groups Management**: 
   - Create and manage test groups (LFT, KFT, Thyroid Profile, CBC, etc.)
   - Pricing configuration per group
@@ -33,6 +35,7 @@ A comprehensive MERN stack application for managing pathology lab operations inc
   - **Pie Charts**: Referring doctors distribution by amount and test groups revenue distribution
   - **Monthly Revenue Trends**: Line chart showing revenue patterns over time
   - **Top Performing Analytics**: Ranked lists of doctors and test groups by performance
+  - **Payment Method Analytics**: Breakdown of revenue by payment methods
 - **Professional UI**: Modern card-based layout with treasury/financial icons
 - **Quick Actions**: Easy access to create bills and manage settings
 - **Advanced Search & Filter**: Real-time search across all entities
@@ -52,10 +55,15 @@ A comprehensive MERN stack application for managing pathology lab operations inc
   - Individual test selection within groups
   - Prevents duplicate group selection
   - Real-time pricing calculations
+- **Advanced Payment Mode System**:
+  - **Flexible Payment Configuration**: Enable/disable multiple payment methods
+  - **Multiple Payment Methods**: Support for Cash, Card, UPI, Bank Transfer, etc.
+  - **Smart Payment Calculation**: Automatic total calculation from multiple payment entries
+  - **Payment Status Management**: Automatic status updates (Pending, Partially Paid, Paid)
+  - **Payment Mode Toggle**: Seamless switching between simple and detailed payment tracking
 - **Financial Management**: 
   - Automatic bill totals with tax calculations
   - Discount application and final amount computation
-  - Multiple payment modes support
   - Payment tracking with due amount calculations
 - **Bill Operations**: 
   - Create, view, edit, and delete bills
@@ -117,10 +125,33 @@ A comprehensive MERN stack application for managing pathology lab operations inc
 
 ## Recent Updates & Key Improvements
 
+### Advanced Payment Mode System (Latest Major Update)
+- **✅ Flexible Payment Configuration**: 
+  - Enable/disable multiple payment methods globally
+  - Dynamic UI adaptation based on payment mode settings
+  - Seamless switching between simple and detailed payment tracking
+- **✅ Multiple Payment Methods Support**: 
+  - Configurable payment modes (Cash, Card, UPI, Bank Transfer, etc.)
+  - Individual payment method management with CRUD operations
+  - Payment method analytics and revenue breakdown
+- **✅ Smart Payment Calculation**: 
+  - Automatic total calculation from multiple payment entries
+  - Real-time payment status updates (Pending, Partially Paid, Paid)
+  - Intelligent handling of payment mode transitions
+- **✅ Robust Backend Logic**: 
+  - Separate handling for payment mode enabled/disabled scenarios
+  - Proper validation and error handling for payment calculations
+  - Data integrity maintenance across payment mode changes
+- **✅ Enhanced Frontend Integration**: 
+  - Dynamic form fields based on payment mode settings
+  - Real-time payment total calculations
+  - Visual feedback for payment status changes
+
 ### Dashboard Analytics & Visualization (Major Update)
 - **✅ Advanced Pie Charts**: 
   - Referring doctors distribution by total referral amounts
   - Test groups revenue distribution with professional color schemes
+  - Payment method breakdown with revenue analytics
   - Interactive legends and data visualization
 - **✅ Monthly Revenue Trends**: Line chart showing revenue patterns over time
 - **✅ Enhanced UI**: 

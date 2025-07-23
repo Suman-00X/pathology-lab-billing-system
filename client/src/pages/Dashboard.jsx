@@ -17,7 +17,16 @@ import {
   Activity,
   BarChart3,
   PieChart,
-  Filter
+  Filter,
+  DollarSign,
+  TrendingDown,
+  ArrowUpRight,
+  ArrowDownRight,
+  Zap,
+  Target,
+  Award,
+  Eye,
+  X
 } from 'lucide-react';
 import { useBillStats } from '../hooks/useApiHooks';
 import { format, startOfMonth, startOfYear, parseISO } from 'date-fns';
@@ -54,6 +63,7 @@ function Dashboard() {
     startDate: '',
     endDate: ''
   });
+  const [showPaymentBreakdown, setShowPaymentBreakdown] = useState(false);
 
   // Prepare params for API call
   const apiParams = useMemo(() => {
@@ -103,21 +113,6 @@ function Dashboard() {
     };
   }, [stats.monthlyTrend]);
 
-  const paymentMethodChartData = useMemo(() => {
-    if (!stats.paymentMethodBreakdown?.length) return null;
-    
-    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316'];
-    
-    return {
-      labels: stats.paymentMethodBreakdown.map(item => item._id),
-      datasets: [{
-        data: stats.paymentMethodBreakdown.map(item => item.amount),
-        backgroundColor: colors.slice(0, stats.paymentMethodBreakdown.length),
-        borderWidth: 2,
-      }]
-    };
-  }, [stats.paymentMethodBreakdown]);
-
 
 
   // Pie chart data for referring doctors
@@ -156,9 +151,18 @@ function Dashboard() {
 
   const chartOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top',
+      },
+      tooltip: {
+        enabled: true,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#ffffff',
+        bodyColor: '#ffffff',
+        borderColor: '#ffffff',
+        borderWidth: 1,
       },
     },
     scales: {
@@ -174,16 +178,72 @@ function Dashboard() {
         },
       },
     },
+    interaction: {
+      mode: 'nearest',
+      intersect: false,
+    },
   };
 
+  // Fixed pie chart options to prevent shrinking on hover
   const pieChartOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'bottom',
+        labels: {
+          padding: 20,
+          usePointStyle: true,
+          pointStyle: 'circle',
+        },
+      },
+      tooltip: {
+        enabled: true,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#ffffff',
+        bodyColor: '#ffffff',
+        borderColor: '#ffffff',
+        borderWidth: 1,
       },
     },
+    elements: {
+      arc: {
+        borderWidth: 2,
+        borderColor: '#ffffff',
+      },
+    },
+    interaction: {
+      mode: 'nearest',
+      intersect: false,
+    },
   };
+
+  // Calculate performance indicators
+  const performanceIndicators = useMemo(() => {
+    if (!stats) return null;
+    
+    const collectionRate = stats.collectionEfficiency || 0;
+    const avgBillValue = stats.averageBillValue || 0;
+    const totalCases = stats.totalCases || 0;
+    
+    return {
+      collectionRate: {
+        value: collectionRate,
+        status: collectionRate >= 80 ? 'excellent' : collectionRate >= 60 ? 'good' : 'needs_attention',
+        trend: collectionRate >= 75 ? 'up' : 'down'
+      },
+      avgBillValue: {
+        value: avgBillValue,
+        status: avgBillValue >= 2000 ? 'excellent' : avgBillValue >= 1000 ? 'good' : 'needs_attention',
+        trend: avgBillValue >= 1500 ? 'up' : 'down'
+      },
+      totalCases: {
+        value: totalCases,
+        status: totalCases >= 100 ? 'excellent' : totalCases >= 50 ? 'good' : 'needs_attention',
+        trend: totalCases >= 75 ? 'up' : 'down'
+      }
+    };
+  }, [stats]);
 
   if (loading) {
     return (
@@ -260,6 +320,71 @@ function Dashboard() {
             onChange={(e) => setCustomDates(prev => ({ ...prev, endDate: e.target.value }))}
             className="form-input text-sm"
           />
+        </div>
+      )}
+
+      {/* Performance Indicators */}
+      {performanceIndicators && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="card bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+            <div className="card-body">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-700">Collection Rate</p>
+                  <p className="text-2xl font-bold text-blue-900">{performanceIndicators.collectionRate.value.toFixed(2)}%</p>
+                </div>
+                <div className={`p-2 rounded-full ${
+                  performanceIndicators.collectionRate.status === 'excellent' ? 'bg-green-100' :
+                  performanceIndicators.collectionRate.status === 'good' ? 'bg-yellow-100' : 'bg-red-100'
+                }`}>
+                  {performanceIndicators.collectionRate.trend === 'up' ? 
+                    <ArrowUpRight className="h-5 w-5 text-green-600" /> : 
+                    <ArrowDownRight className="h-5 w-5 text-red-600" />
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+            <div className="card-body">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-700">Avg Bill Value</p>
+                  <p className="text-2xl font-bold text-green-900">₹{Math.round(performanceIndicators.avgBillValue.value).toLocaleString()}</p>
+                </div>
+                <div className={`p-2 rounded-full ${
+                  performanceIndicators.avgBillValue.status === 'excellent' ? 'bg-green-100' :
+                  performanceIndicators.avgBillValue.status === 'good' ? 'bg-yellow-100' : 'bg-red-100'
+                }`}>
+                  {performanceIndicators.avgBillValue.trend === 'up' ? 
+                    <ArrowUpRight className="h-5 w-5 text-green-600" /> : 
+                    <ArrowDownRight className="h-5 w-5 text-red-600" />
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
+            <div className="card-body">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-purple-700">Total Cases</p>
+                  <p className="text-2xl font-bold text-purple-900">{performanceIndicators.totalCases.value}</p>
+                </div>
+                <div className={`p-2 rounded-full ${
+                  performanceIndicators.totalCases.status === 'excellent' ? 'bg-green-100' :
+                  performanceIndicators.totalCases.status === 'good' ? 'bg-yellow-100' : 'bg-red-100'
+                }`}>
+                  {performanceIndicators.totalCases.trend === 'up' ? 
+                    <ArrowUpRight className="h-5 w-5 text-green-600" /> : 
+                    <ArrowDownRight className="h-5 w-5 text-red-600" />
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -345,25 +470,34 @@ function Dashboard() {
 
       {/* Secondary Metrics Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Revenue */}
-        <div className="card">
-          <div className="card-body">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="bg-green-500 p-3 rounded-lg">
-                  <Landmark className="h-6 w-6 text-white" />
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Revenue</dt>
-                  <dd className="text-lg font-semibold text-gray-900">₹{stats.totalRevenue.toLocaleString()}</dd>
-                  <dd className="text-xs text-gray-500">All bill amounts</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
+                 {/* Total Revenue */}
+         <div className="card">
+           <div className="card-body">
+             <div className="flex items-center">
+               <div className="flex-shrink-0">
+                 <div className="bg-green-500 p-3 rounded-lg">
+                   <Landmark className="h-6 w-6 text-white" />
+                 </div>
+               </div>
+               <div className="ml-5 w-0 flex-1">
+                 <dl>
+                   <dt className="text-sm font-medium text-gray-500 truncate">Total Revenue</dt>
+                   <dd className="text-lg font-semibold text-gray-900">₹{stats.totalRevenue.toLocaleString()}</dd>
+                   <dd className="text-xs text-gray-500">All bill amounts</dd>
+                 </dl>
+               </div>
+               <div className="flex-shrink-0 ml-4">
+                 <button
+                   onClick={() => setShowPaymentBreakdown(true)}
+                   className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                   title="View Payment Breakdown"
+                 >
+                   <Eye className="h-5 w-5" />
+                 </button>
+               </div>
+             </div>
+           </div>
+         </div>
 
         {/* Payment Received */}
         <div className="card">
@@ -416,13 +550,33 @@ function Dashboard() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Collection Rate</dt>
-                  <dd className="text-lg font-semibold text-gray-900">{Math.round(stats.collectionEfficiency)}%</dd>
+                  <dd className="text-lg font-semibold text-gray-900">{stats.collectionEfficiency.toFixed(2)}%</dd>
                   <dd className="text-xs text-gray-500">% of bills fully paid</dd>
                 </dl>
               </div>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Monthly Revenue Trend */}
+                 {monthlyRevenueChartData && (
+           <div className="card">
+             <div className="card-header">
+               <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                 <BarChart3 className="h-5 w-5 mr-2" />
+                 Monthly Revenue Trend
+               </h3>
+             </div>
+             <div className="card-body" style={{ height: '300px' }}>
+               <Bar data={monthlyRevenueChartData} options={chartOptions} />
+             </div>
+           </div>
+         )}
+
+        
       </div>
 
       {/* Pie Charts Section */}
@@ -437,7 +591,7 @@ function Dashboard() {
               </h3>
               <p className="text-sm text-gray-500 mt-1">Total amount referred by each doctor</p>
             </div>
-            <div className="card-body">
+            <div className="card-body" style={{ height: '300px' }}>
               <Pie data={doctorsPieChartData} options={pieChartOptions} />
             </div>
           </div>
@@ -453,30 +607,15 @@ function Dashboard() {
               </h3>
               <p className="text-sm text-gray-500 mt-1">Revenue generated by each test group</p>
             </div>
-            <div className="card-body">
+            <div className="card-body" style={{ height: '300px' }}>
               <Pie data={testGroupsPieChartData} options={pieChartOptions} />
             </div>
           </div>
         )}
       </div>
 
-      {/* Charts and Performance Section */}
+      {/* Performance Lists Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Revenue Trend */}
-        {monthlyRevenueChartData && (
-          <div className="card">
-            <div className="card-header">
-              <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                <BarChart3 className="h-5 w-5 mr-2" />
-                Monthly Revenue Trend
-              </h3>
-            </div>
-            <div className="card-body">
-              <Bar data={monthlyRevenueChartData} options={chartOptions} />
-            </div>
-          </div>
-        )}
-
         {/* Top Referring Doctors */}
         <div className="card">
           <div className="card-header">
@@ -488,12 +627,12 @@ function Dashboard() {
           <div className="card-body">
             <div className="space-y-3">
               {stats.topDoctors?.slice(0, 5).map((doctor, index) => (
-                <div key={`${doctor.name}-${doctor.phone}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={`${doctor.name}-${doctor.phone}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                   <div className="flex items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium text-white mr-3 ${
                       index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-blue-500'
                     }`}>
-                      {index + 1}
+                      {index === 0 ? <Award className="h-4 w-4" /> : index + 1}
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">Dr. {doctor.name}</p>
@@ -512,11 +651,8 @@ function Dashboard() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Top Performing Test Groups */}
-      <div className="grid grid-cols-1 gap-6">
-        {/* Top Test Groups List */}
+        {/* Top Performing Test Groups */}
         <div className="card">
           <div className="card-header">
             <h3 className="text-lg font-medium text-gray-900 flex items-center">
@@ -527,12 +663,12 @@ function Dashboard() {
           <div className="card-body">
             <div className="space-y-3">
               {stats.topTestGroups?.slice(0, 5).map((group, index) => (
-                <div key={group._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={group._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                   <div className="flex items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium text-white mr-3 ${
                       index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-blue-500'
                     }`}>
-                      {index + 1}
+                      {index === 0 ? <Target className="h-4 w-4" /> : index + 1}
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">{group.name}</p>
@@ -545,20 +681,24 @@ function Dashboard() {
                   </div>
                 </div>
               ))}
+              {(!stats.topTestGroups || stats.topTestGroups.length === 0) && (
+                <p className="text-gray-500 text-center py-4">No test group data available</p>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-
-
       {/* Quick Actions */}
       <div>
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
+        <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+          <Zap className="h-5 w-5 mr-2 text-yellow-500" />
+          Quick Actions
+        </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Link
             to="/billing/create"
-            className="card hover:shadow-lg transition-shadow duration-200"
+            className="card hover:shadow-lg transition-all duration-200 hover:scale-105"
           >
             <div className="card-body text-center">
               <div className="bg-blue-500 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -571,7 +711,7 @@ function Dashboard() {
 
           <Link
             to="/billing/list"
-            className="card hover:shadow-lg transition-shadow duration-200"
+            className="card hover:shadow-lg transition-all duration-200 hover:scale-105"
           >
             <div className="card-body text-center">
               <div className="bg-green-500 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -584,7 +724,7 @@ function Dashboard() {
 
           <Link
             to="/admin/test-groups"
-            className="card hover:shadow-lg transition-shadow duration-200"
+            className="card hover:shadow-lg transition-all duration-200 hover:scale-105"
           >
             <div className="card-body text-center">
               <div className="bg-purple-500 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -597,7 +737,7 @@ function Dashboard() {
 
           <Link
             to="/admin/doctors"
-            className="card hover:shadow-lg transition-shadow duration-200"
+            className="card hover:shadow-lg transition-all duration-200 hover:scale-105"
           >
             <div className="card-body text-center">
               <div className="bg-indigo-500 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -609,6 +749,76 @@ function Dashboard() {
           </Link>
         </div>
       </div>
+
+             {/* Payment Breakdown Modal */}
+       {showPaymentBreakdown && (
+         <div 
+           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+           onClick={() => setShowPaymentBreakdown(false)}
+         >
+           <div 
+             className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden"
+             onClick={(e) => e.stopPropagation()}
+           >
+             <div className="flex items-center justify-between p-6 border-b border-gray-200">
+               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                 <CreditCard className="h-5 w-5 mr-2 text-green-600" />
+                 Payment Method Breakdown
+               </h3>
+               <button
+                 onClick={() => setShowPaymentBreakdown(false)}
+                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+               >
+                 <X className="h-5 w-5" />
+               </button>
+             </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {stats.paymentMethodBreakdown && stats.paymentMethodBreakdown.length > 0 ? (
+                <div className="space-y-4">
+                  {stats.paymentMethodBreakdown.map((item, index) => {
+                    const percentage = ((item.amount / stats.totalRevenue) * 100).toFixed(1);
+                    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316'];
+                    const color = colors[index % colors.length];
+                    
+                    return (
+                      <div key={item._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center">
+                          <div 
+                            className="w-4 h-4 rounded-full mr-3"
+                            style={{ backgroundColor: color }}
+                          ></div>
+                          <div>
+                            <p className="font-medium text-gray-900">{item._id}</p>
+                            <p className="text-sm text-gray-500">{percentage}% of total revenue</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-gray-900">₹{item.amount.toLocaleString()}</p>
+                          <p className="text-sm text-gray-500">{item.count || 0} transactions</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  <div className="mt-6 pt-4 border-t border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-gray-900">Total Revenue</p>
+                      <p className="font-semibold text-gray-900">₹{stats.totalRevenue.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No payment method data available</p>
+                  <p className="text-sm text-gray-400 mt-2">Payment breakdown will appear here when available</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

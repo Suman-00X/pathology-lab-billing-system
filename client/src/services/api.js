@@ -8,7 +8,7 @@ const API_BASE_URL = import.meta.env.DEV
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // Increased timeout to 30 seconds
 });
 
 // Request interceptor
@@ -84,7 +84,7 @@ export const settingsAPI = {
 export const referredDoctorAPI = {
   getAll: (params) => api.get('/api/referred-doctors', { params }),
   getById: (id) => api.get(`/api/referred-doctors/${id}`),
-  searchByMobile: (mobile) => api.get(`/api/referred-doctors/search/mobile/${mobile}`),
+  searchByMobile: (mobile) => api.get(`/api/referred-doctors/search/mobile/${mobile}`, { timeout: 15000 }), // 15 second timeout for search
   create: (data) => api.post('/api/referred-doctors', data),
   update: (id, data) => api.put(`/api/referred-doctors/${id}`, data),
   delete: (id) => api.delete(`/api/referred-doctors/${id}`),

@@ -9,7 +9,7 @@ export const billController = {
   // Create a new bill and its corresponding report
   async createBill(req, res) {
     try {
-      const { patient, referredBy, testGroups: testGroupIds, toBePaidAmount, paymentDetails = [], dues = 0, notes } = req.body;
+      const { patient, referredBy, testGroups: testGroupIds, toBePaidAmount, paymentDetails = [], paidAmount, dues = 0, notes, isPaymentModeEnabled } = req.body;
 
       if (!testGroupIds || testGroupIds.length === 0) {
         return res.status(400).json({ message: 'At least one test group is required.' });
@@ -48,34 +48,42 @@ export const billController = {
       const discount = totalWithTax - (toBePaidAmount || totalWithTax);
       const finalAmount = toBePaidAmount || totalWithTax;
 
-      // Calculate paid amount from payment details for payment status
-      const totalPayments = paymentDetails.length > 0 
-        ? paymentDetails.reduce((sum, payment) => Number(sum) + Number(payment.amount || 0), 0) 
-        : 0;
+      // Calculate paid amount based on payment mode
+      let totalPayments = 0;
+      if (isPaymentModeEnabled) {
+        // Payment mode enabled: calculate from paymentDetails only
+        totalPayments = paymentDetails.length > 0 
+          ? paymentDetails.reduce((sum, payment) => Number(sum) + Number(payment.amount || 0), 0) 
+          : 0;
+      } else {
+        // Payment mode disabled: use paidAmount from request
+        totalPayments = paidAmount !== undefined ? Number(paidAmount) : 0;
+      }
 
 
 
-      // Create and save the new bill
-      const newBill = new Bill({
-        patient,
-        referredBy,
-        testGroups: testGroupIds,
-        totalAmount,
-        taxAmount,
-        totalWithTax,
-        toBePaidAmount: finalAmount,
-        discount,
-        finalAmount,
-        paymentDetails,
-        paidAmount: Number(totalPayments),
-        dues: Number(dues),
-        paymentStatus: (() => {
-          if (totalPayments >= finalAmount) return 'Paid';
-          if (totalPayments > 0) return 'Partially Paid';
-          return 'Pending';
-        })(),
-        notes
-      });
+             // Create and save the new bill
+       const newBill = new Bill({
+         patient,
+         referredBy,
+         testGroups: testGroupIds,
+         totalAmount,
+         taxAmount,
+         totalWithTax,
+         toBePaidAmount,
+         discount,
+         finalAmount,
+         paymentDetails,
+         paidAmount: Number(totalPayments),
+         dues: Number(dues),
+         isPaymentModeEnabled: Boolean(isPaymentModeEnabled),
+         paymentStatus: (() => {
+           if (totalPayments >= finalAmount) return 'Paid';
+           if (totalPayments > 0) return 'Partially Paid';
+           return 'Pending';
+         })(),
+         notes
+       });
       await newBill.save();
         
         // Create the corresponding report
@@ -130,19 +138,20 @@ export const billController = {
   // Update bill
   async updateBill(req, res) {
     try {
-      const {
-        patient,
-        referredBy,
-        testGroups: testGroupIds,
-        toBePaidAmount,
-        paymentDetails,
-        paymentStatus,
-        paidAmount,
-        dues,
-        status,
-        reportDate,
-        notes
-      } = req.body;
+             const {
+         patient,
+         referredBy,
+         testGroups: testGroupIds,
+         toBePaidAmount,
+         paymentDetails,
+         paymentStatus,
+         paidAmount,
+         dues,
+         status,
+         reportDate,
+         notes,
+         isPaymentModeEnabled
+       } = req.body;
 
       const billToUpdate = await Bill.findById(req.params.id);
       if (!billToUpdate) {
@@ -168,12 +177,13 @@ export const billController = {
           }
         }
       }
-      if (paymentStatus) billToUpdate.paymentStatus = paymentStatus;
-      if (paidAmount !== undefined) billToUpdate.paidAmount = Number(paidAmount);
-      if (dues !== undefined) billToUpdate.dues = Number(dues);
-      if (status) billToUpdate.status = status;
-      if (reportDate) billToUpdate.reportDate = reportDate;
-      if (notes !== undefined) billToUpdate.notes = notes;
+             if (paymentStatus) billToUpdate.paymentStatus = paymentStatus;
+       if (paidAmount !== undefined) billToUpdate.paidAmount = Number(paidAmount);
+       if (dues !== undefined) billToUpdate.dues = Number(dues);
+       if (status) billToUpdate.status = status;
+       if (reportDate) billToUpdate.reportDate = reportDate;
+       if (notes !== undefined) billToUpdate.notes = notes;
+       if (isPaymentModeEnabled !== undefined) billToUpdate.isPaymentModeEnabled = Boolean(isPaymentModeEnabled);
 
       // If test groups are being updated, recalculate totals and update the report
       if (testGroupIds) {
@@ -214,17 +224,35 @@ export const billController = {
         billToUpdate.finalAmount = billToUpdate.totalWithTax - billToUpdate.discount;
       }
 
-      // Handle payment details
-      if (paymentDetails) {
-        const totalPayments = paymentDetails.reduce((sum, payment) => Number(sum) + Number(payment.amount || 0), 0);
-        
+      // Handle payment details and paid amount
+      if (paymentDetails !== undefined) {
         billToUpdate.paymentDetails = paymentDetails;
-        billToUpdate.paidAmount = totalPayments;
         
-        // Update payment status based on payment amount
-        if (totalPayments >= billToUpdate.finalAmount) {
+        if (billToUpdate.isPaymentModeEnabled) {
+          // When payment mode is enabled, calculate from payment details
+          const totalPayments = paymentDetails.reduce((sum, payment) => Number(sum) + Number(payment.amount || 0), 0);
+          billToUpdate.paidAmount = totalPayments;
+        } else if (paidAmount !== undefined) {
+          // When payment mode is disabled, use the paidAmount directly from request
+          billToUpdate.paidAmount = Number(paidAmount);
+        }
+        
+        // Update payment status based on paid amount
+        if (billToUpdate.paidAmount >= billToUpdate.finalAmount) {
           billToUpdate.paymentStatus = 'Paid';
-        } else if (totalPayments > 0) {
+        } else if (billToUpdate.paidAmount > 0) {
+          billToUpdate.paymentStatus = 'Partially Paid';
+        } else {
+          billToUpdate.paymentStatus = 'Pending';
+        }
+      } else if (paidAmount !== undefined) {
+        // When payment mode is disabled, use the paidAmount directly from request
+        billToUpdate.paidAmount = Number(paidAmount);
+        
+        // Update payment status based on paid amount
+        if (billToUpdate.paidAmount >= billToUpdate.finalAmount) {
+          billToUpdate.paymentStatus = 'Paid';
+        } else if (billToUpdate.paidAmount > 0) {
           billToUpdate.paymentStatus = 'Partially Paid';
         } else {
           billToUpdate.paymentStatus = 'Pending';

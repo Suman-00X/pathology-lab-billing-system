@@ -117,6 +117,10 @@ const billSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  isPaymentModeEnabled: {
+    type: Boolean,
+    default: false
+  },
   paymentDetails: [{
     mode: {
       type: mongoose.Schema.Types.ObjectId,

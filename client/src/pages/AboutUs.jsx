@@ -1,5 +1,5 @@
 import React from 'react';
-import { Info, User, Mail, Phone, ExternalLink, Heart, Award } from 'lucide-react';
+import { Info, User, Mail, Phone, ExternalLink, Heart, Award, CreditCard, Settings, BarChart3, FileText, TestTube2, Users, Building2 } from 'lucide-react';
 
 function AboutUs() {
   return (
@@ -10,7 +10,7 @@ function AboutUs() {
           About Us
         </h1>
         <p className="mt-2 text-lg text-gray-700">
-          Learn more about our pathology lab billing software and the team behind it.
+          Learn more about our comprehensive pathology lab billing software and the team behind it.
         </p>
       </div>
 
@@ -26,11 +26,14 @@ function AboutUs() {
               Our Pathology Lab Billing Software is a comprehensive solution designed to streamline 
               the management of pathology laboratory operations. Built with modern technologies, 
               this application provides an intuitive interface for managing lab settings, tests, 
-              and billing processes.
+              billing processes, and advanced payment mode management.
             </p>
             <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Core Features</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                  <Building2 className="h-5 w-5 mr-2 text-primary-600" />
+                  Core Features
+                </h3>
                 <ul className="space-y-2 text-gray-700">
                   <li className="flex items-start">
                     <span className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
@@ -52,10 +55,17 @@ function AboutUs() {
                     <span className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
                     Test group management with pricing and methodology tracking
                   </li>
+                  <li className="flex items-start">
+                    <span className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                    Advanced payment mode system with multiple payment methods
+                  </li>
                 </ul>
               </div>
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Advanced Capabilities</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                  <Settings className="h-5 w-5 mr-2 text-primary-600" />
+                  Advanced Capabilities
+                </h3>
                 <ul className="space-y-2 text-gray-700">
                   <li className="flex items-start">
                     <span className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
@@ -67,18 +77,124 @@ function AboutUs() {
                   </li>
                   <li className="flex items-start">
                     <span className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                    Payment tracking with multiple payment modes support
+                    Flexible payment tracking with multiple payment modes support
                   </li>
                   <li className="flex items-start">
                     <span className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                    Flexible lab configuration with optional GST settings
+                    Configurable lab settings with optional GST and tax management
                   </li>
                   <li className="flex items-start">
                     <span className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
                     Mobile-responsive design with intuitive user interface
                   </li>
+                  <li className="flex items-start">
+                    <span className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                    Real-time payment status updates and analytics
+                  </li>
                 </ul>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Key Features Breakdown */}
+      <div className="card">
+        <div className="card-body">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+            <BarChart3 className="h-6 w-6 mr-2 text-primary-600" />
+            Key Features Breakdown
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Billing System */}
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg">
+              <div className="flex items-center mb-4">
+                <FileText className="h-8 w-8 text-blue-600 mr-3" />
+                <h3 className="text-lg font-semibold text-gray-900">Billing System</h3>
+              </div>
+              <ul className="space-y-2 text-sm text-gray-700">
+                <li>• Smart doctor auto-search by mobile number</li>
+                <li>• Multi-select test groups with pricing</li>
+                <li>• Advanced payment mode management</li>
+                <li>• Real-time bill calculations</li>
+                <li>• Comprehensive payment tracking</li>
+              </ul>
+            </div>
+
+            {/* Payment Modes */}
+            <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg">
+              <div className="flex items-center mb-4">
+                <CreditCard className="h-8 w-8 text-green-600 mr-3" />
+                <h3 className="text-lg font-semibold text-gray-900">Payment Modes</h3>
+              </div>
+              <ul className="space-y-2 text-sm text-gray-700">
+                <li>• Multiple payment methods (Cash, Card, UPI)</li>
+                <li>• Flexible payment mode configuration</li>
+                <li>• Automatic payment status updates</li>
+                <li>• Payment method analytics</li>
+                <li>• Seamless mode switching</li>
+              </ul>
+            </div>
+
+            {/* Test Management */}
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg">
+              <div className="flex items-center mb-4">
+                <TestTube2 className="h-8 w-8 text-purple-600 mr-3" />
+                <h3 className="text-lg font-semibold text-gray-900">Test Management</h3>
+              </div>
+              <ul className="space-y-2 text-sm text-gray-700">
+                <li>• Test groups with pricing</li>
+                <li>• Individual test configuration</li>
+                <li>• Methodology and normal ranges</li>
+                <li>• Sample type management</li>
+                <li>• Active/inactive status</li>
+              </ul>
+            </div>
+
+            {/* Doctor Management */}
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-lg">
+              <div className="flex items-center mb-4">
+                <Users className="h-8 w-8 text-orange-600 mr-3" />
+                <h3 className="text-lg font-semibold text-gray-900">Doctor Management</h3>
+              </div>
+              <ul className="space-y-2 text-sm text-gray-700">
+                <li>• Unique mobile number validation</li>
+                <li>• Auto-search and auto-fill</li>
+                <li>• Referral tracking & analytics</li>
+                <li>• Performance metrics</li>
+                <li>• Bills history per doctor</li>
+              </ul>
+            </div>
+
+            {/* Analytics Dashboard */}
+            <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-lg">
+              <div className="flex items-center mb-4">
+                <BarChart3 className="h-8 w-8 text-red-600 mr-3" />
+                <h3 className="text-lg font-semibold text-gray-900">Analytics</h3>
+              </div>
+              <ul className="space-y-2 text-sm text-gray-700">
+                <li>• Real-time revenue statistics</li>
+                <li>• Interactive pie charts</li>
+                <li>• Monthly revenue trends</li>
+                <li>• Payment method breakdown</li>
+                <li>• Top performing analytics</li>
+              </ul>
+            </div>
+
+            {/* Report Management */}
+            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-lg">
+              <div className="flex items-center mb-4">
+                <FileText className="h-8 w-8 text-indigo-600 mr-3" />
+                <h3 className="text-lg font-semibold text-gray-900">Reports</h3>
+              </div>
+              <ul className="space-y-2 text-sm text-gray-700">
+                <li>• Professional report interface</li>
+                <li>• Edit mode with save/cancel</li>
+                <li>• Tabbed test group interface</li>
+                <li>• Real-time validation</li>
+                <li>• Automatic flag calculation</li>
+              </ul>
             </div>
           </div>
         </div>
