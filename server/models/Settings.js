@@ -8,6 +8,16 @@ const settingsSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
+  // Tax enable/disable setting
+  taxEnabled: {
+    type: Boolean,
+    default: true
+  },
+  // Payment mode enable/disable setting
+  paymentModeEnabled: {
+    type: Boolean,
+    default: true
+  },
   // Can add more settings in the future
   currency: {
     type: String,

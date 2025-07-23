@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useBill } from '../../hooks/useApiHooks';
+import { useBill, useLab } from '../../hooks/useApiHooks';
 import { FileText, User, Stethoscope, Calendar, IndianRupee, Printer, Edit, Trash2, FileHeart } from 'lucide-react';
 
 const InfoCard = ({ title, children, className }) => (
@@ -20,13 +20,143 @@ const InfoRow = ({ label, value }) => (
 function BillDetails() {
     const { id } = useParams();
     const { bill, loading, error } = useBill(id);
+    const { lab } = useLab();
     const navigate = useNavigate();
 
     if (loading) return <div className="text-center py-10">Loading Bill Details...</div>;
     if (error) return <div className="text-red-500 text-center py-10">Error: {error.message}</div>;
     if (!bill) return <div className="text-center py-10">Bill not found.</div>;
 
+    const handlePrint = () => {
+        const printWindow = window.open('', '_blank');
+        const printContent = generatePrintContent();
+        
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Bill #${bill.billNumber}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+                    .logo { max-height: 60px; margin-bottom: 10px; }
+                    .lab-name { font-size: 24px; font-weight: bold; margin: 5px 0; }
+                    .lab-info { font-size: 12px; color: #666; }
+                    .bill-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
+                    .patient-info, .doctor-info { flex: 1; }
+                    .section { margin-bottom: 25px; }
+                    .section-title { font-size: 18px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px; }
+                    .row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+                    .label { font-weight: bold; }
+                    .tests-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                    .tests-table th, .tests-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    .tests-table th { background-color: #f5f5f5; }
+                    .total-section { margin-top: 20px; border-top: 2px solid #333; padding-top: 15px; }
+                    .total-row { font-weight: bold; font-size: 16px; }
+                    .status { padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; }
+                    .status-paid { background-color: #d4edda; color: #155724; }
+                    .status-partial { background-color: #fff3cd; color: #856404; }
+                    .status-pending { background-color: #f8d7da; color: #721c24; }
+                    .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+                    @media print {
+                        body { margin: 0; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                ${printContent}
+            </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+    };
 
+    const generatePrintContent = () => {
+        const apiBaseUrl = import.meta.env.DEV 
+          ? 'http://localhost:5000' 
+          : 'https://pathology-lab-billing-system.onrender.com';
+        
+        return `
+            <div class="header">
+                ${lab?.logo ? `<img src="${apiBaseUrl}${lab.logo}" alt="Lab Logo" class="logo">` : ''}
+                <div class="lab-name">${lab?.name || 'Pathology Lab'}</div>
+                <div class="lab-info">
+                    ${lab?.address ? `${lab.address.street}, ${lab.address.city}, ${lab.address.state} - ${lab.address.pincode}` : ''}<br>
+                    ${lab?.contactInfo?.phone ? `Phone: ${lab.contactInfo.phone}` : ''}
+                    ${lab?.contactInfo?.email ? ` | Email: ${lab.contactInfo.email}` : ''}
+                </div>
+            </div>
+
+            <div class="bill-info">
+                <div class="patient-info">
+                    <div class="section-title">Patient Information</div>
+                    <div class="row"><span class="label">Name:</span> <span>${bill.patient.name}</span></div>
+                    <div class="row"><span class="label">Age:</span> <span>${bill.patient.age} years</span></div>
+                    <div class="row"><span class="label">Gender:</span> <span>${bill.patient.gender}</span></div>
+                    <div class="row"><span class="label">Phone:</span> <span>${bill.patient.phone}</span></div>
+                    <div class="row"><span class="label">Address:</span> <span>${bill.patient.address.street}, ${bill.patient.address.city}, ${bill.patient.address.state} - ${bill.patient.address.pincode}</span></div>
+                </div>
+                <div class="doctor-info">
+                    <div class="section-title">Referring Doctor</div>
+                    <div class="row"><span class="label">Name:</span> <span>${bill.referredBy.doctorName}</span></div>
+                    <div class="row"><span class="label">Qualification:</span> <span>${bill.referredBy.qualification || 'N/A'}</span></div>
+                    <div class="row"><span class="label">Phone:</span> <span>${bill.referredBy.phone || 'N/A'}</span></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Bill Information</div>
+                <div class="row"><span class="label">Bill Number:</span> <span>${bill.billNumber}</span></div>
+                <div class="row"><span class="label">Bill Date:</span> <span>${new Date(bill.billDate).toLocaleDateString()}</span></div>
+                <div class="row"><span class="label">Sample Collection:</span> <span>${new Date(bill.sampleCollectionDate).toLocaleDateString()}</span></div>
+                <div class="row"><span class="label">Report Date:</span> <span>${bill.reportDate ? new Date(bill.reportDate).toLocaleDateString() : 'Pending'}</span></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Test Groups</div>
+                <table class="tests-table">
+                    <thead>
+                        <tr>
+                            <th>Test Group</th>
+                            <th>Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${bill.testGroups.map(group => `
+                            <tr>
+                                <td>${group.name}</td>
+                                <td>₹${group.price.toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="total-section">
+                <div class="row"><span class="label">Total Amount:</span> <span>₹${bill.totalAmount.toFixed(2)}</span></div>
+                ${bill.taxAmount > 0 ? `<div class="row"><span class="label">Tax:</span> <span>₹${bill.taxAmount.toFixed(2)}</span></div>` : ''}
+                <div class="row"><span class="label">Total with Tax:</span> <span>₹${bill.totalWithTax.toFixed(2)}</span></div>
+                ${bill.discount > 0 ? `<div class="row"><span class="label">Discount:</span> <span>- ₹${bill.discount.toFixed(2)}</span></div>` : ''}
+                <div class="row total-row"><span class="label">Final Amount:</span> <span>₹${bill.finalAmount.toFixed(2)}</span></div>
+                <div class="row"><span class="label">Paid Amount:</span> <span>₹${bill.paidAmount.toFixed(2)}</span></div>
+                <div class="row"><span class="label">Due Amount:</span> <span>₹${(bill.dues !== undefined ? bill.dues : (bill.finalAmount - bill.paidAmount)).toFixed(2)}</span></div>
+                <div class="row">
+                    <span class="label">Payment Status:</span> 
+                    <span class="status ${bill.paymentStatus === 'Paid' ? 'status-paid' : bill.paymentStatus === 'Partially Paid' ? 'status-partial' : 'status-pending'}">${bill.paymentStatus}</span>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>Thank you for choosing our services!</p>
+                <p>For any queries, please contact us at ${lab?.contactInfo?.phone || ''}</p>
+            </div>
+        `;
+    };
 
     return (
         <div className="space-y-6">
@@ -36,6 +166,12 @@ function BillDetails() {
                     <p className="font-mono text-gray-500">Bill #{bill.billNumber}</p>
                 </div>
                 <div className="flex space-x-2">
+                    <button 
+                        onClick={handlePrint}
+                        className="btn-secondary"
+                    >
+                        <Printer size={18} className="mr-2" /> Print Bill
+                    </button>
                     <Link to={`/billing/edit/${bill._id}`} className="btn-secondary">
                         <Edit size={18} className="mr-2" /> Edit
                     </Link>

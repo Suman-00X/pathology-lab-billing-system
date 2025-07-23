@@ -35,11 +35,13 @@ export const billController = {
         return res.status(400).json({ message: 'One or more invalid test groups provided.' });
       }
 
-      // Get tax settings
-      const settings = await Settings.findOne() || { taxPercentage: 0 };
+      // Get settings
+      const settings = await Settings.findOne() || { taxPercentage: 0, taxEnabled: true, paymentModeEnabled: true };
       
       const totalAmount = testGroups.reduce((sum, group) => sum + group.price, 0);
-      const taxAmount = (totalAmount * settings.taxPercentage) / 100;
+      
+      // Calculate tax only if enabled
+      const taxAmount = settings.taxEnabled ? (totalAmount * settings.taxPercentage) / 100 : 0;
       const totalWithTax = totalAmount + taxAmount;
       
       // Calculate discount and final amount
@@ -182,10 +184,10 @@ export const billController = {
         
         billToUpdate.testGroups = testGroupIds;
         
-        // Get tax settings and recalculate amounts
-        const settings = await Settings.findOne() || { taxPercentage: 0 };
+        // Get settings and recalculate amounts
+        const settings = await Settings.findOne() || { taxPercentage: 0, taxEnabled: true, paymentModeEnabled: true };
         billToUpdate.totalAmount = testGroups.reduce((sum, group) => sum + group.price, 0);
-        billToUpdate.taxAmount = (billToUpdate.totalAmount * settings.taxPercentage) / 100;
+        billToUpdate.taxAmount = settings.taxEnabled ? (billToUpdate.totalAmount * settings.taxPercentage) / 100 : 0;
         billToUpdate.totalWithTax = billToUpdate.totalAmount + billToUpdate.taxAmount;
 
         // Update the corresponding report

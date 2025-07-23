@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://pathology-lab-billing-system.onrender.com';
+// Use localhost for development, production URL for production
+const API_BASE_URL = import.meta.env.DEV 
+  ? 'http://localhost:5000' 
+  : 'https://pathology-lab-billing-system.onrender.com';
 
 // Create axios instance
 const api = axios.create({
@@ -18,7 +21,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-  
+    console.error('API Error:', error.response?.data || error.message);
     return Promise.reject(error);
   }
 );

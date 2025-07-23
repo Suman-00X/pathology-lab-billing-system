@@ -231,7 +231,7 @@ function EditBill() {
     }, [doctorPhone, handleDoctorPhoneChange]);
 
     useEffect(() => {
-        if (bill && paymentModes.length > 0) {
+        if (bill) {
             setValue('patientName', bill.patient.name);
             setValue('patientAge', bill.patient.age);
             setValue('patientGender', bill.patient.gender);
@@ -246,8 +246,12 @@ function EditBill() {
             setValue('testGroups', bill.testGroups.map(g => g._id));
             setValue('toBePaidAmount', bill.toBePaidAmount || bill.finalAmount);
             setValue('notes', bill.notes || '');
-            
-            // Set payment details
+        }
+    }, [bill, setValue]);
+
+    // Separate useEffect for payment details when paymentModes become available
+    useEffect(() => {
+        if (bill && paymentModes.length > 0) {
             const formattedPayments = (bill.paymentDetails || []).map(payment => ({
                 mode: payment.mode._id || payment.mode,
                 amount: payment.amount,
@@ -255,7 +259,7 @@ function EditBill() {
             }));
             replacePayments(formattedPayments);
         }
-    }, [bill, paymentModes, setValue, replacePayments]);
+    }, [bill, paymentModes, replacePayments]);
 
     const selectedGroupIds = watch('testGroups', []);
     const toBePaidAmount = watch('toBePaidAmount', 0);
@@ -289,7 +293,12 @@ function EditBill() {
     }, [selectedGroupIds, activeTestGroups]);
 
     const taxPercentage = settings?.taxPercentage || 0;
-    const taxAmount = useMemo(() => (totalAmount * taxPercentage) / 100, [totalAmount, taxPercentage]);
+    const taxEnabled = settings?.taxEnabled !== false;
+    const paymentModeEnabled = settings?.paymentModeEnabled !== false;
+    
+    const taxAmount = useMemo(() => {
+      return taxEnabled ? (totalAmount * taxPercentage) / 100 : 0;
+    }, [totalAmount, taxPercentage, taxEnabled]);
     const totalWithTax = useMemo(() => totalAmount + taxAmount, [totalAmount, taxAmount]);
     const discount = useMemo(() => totalWithTax - (parseFloat(toBePaidAmount) || totalWithTax), [totalWithTax, toBePaidAmount]);
     const finalAmount = useMemo(() => parseFloat(toBePaidAmount) || totalWithTax, [toBePaidAmount, totalWithTax]);
@@ -329,8 +338,8 @@ function EditBill() {
 
 
     const onSubmit = async (data) => {
-        // Validate payment details
-        if (paymentDetails.length > 0) {
+        // Validate payment details if payment mode is enabled
+        if (paymentModeEnabled && paymentDetails.length > 0) {
             const hasInvalidPayments = paymentDetails.some(p => !p.mode || !p.amount || parseFloat(p.amount) <= 0);
             if (hasInvalidPayments) {
                 toast.error('Please fill all payment details with valid amounts');
@@ -363,8 +372,8 @@ function EditBill() {
             },
             testGroups: data.testGroups,
             toBePaidAmount: finalAmount,
-            paymentDetails: data.paymentDetails.filter(p => p.mode && p.amount),
-            dues: Number(duesAmount.toFixed(2)),
+            paymentDetails: paymentModeEnabled ? data.paymentDetails.filter(p => p.mode && p.amount) : [],
+            dues: paymentModeEnabled ? Number(duesAmount.toFixed(2)) : Math.max(0, finalAmount - parseFloat(data.toBePaidAmount || 0)),
             notes: data.notes || '',
         };
 
@@ -589,24 +598,28 @@ function EditBill() {
                                 <span>Test Amount:</span>
                                 <span>₹{totalAmount.toFixed(2)}</span>
                             </div>
-                            <div className="flex justify-between">
-                                <span>Tax ({taxPercentage}%):</span>
-                                <span>₹{taxAmount.toFixed(2)}</span>
-                            </div>
+                            {taxEnabled && (
+                                <div className="flex justify-between">
+                                    <span>Tax ({taxPercentage}%):</span>
+                                    <span>₹{taxAmount.toFixed(2)}</span>
+                                </div>
+                            )}
                         </div>
                         <hr/>
                         <div className="flex justify-between items-center font-medium">
-                            <span>Total Amount (including tax):</span>
+                            <span>Total Amount{taxEnabled ? ' (including tax)' : ''}:</span>
                             <span className="text-lg">₹{totalWithTax.toFixed(2)}</span>
                         </div>
                         
                         <div className="flex justify-between items-center">
-                            <label htmlFor="toBePaidAmount" className="font-medium">To be Paid Amount:</label>
+                            <label htmlFor="toBePaidAmount" className="font-medium">
+                                {paymentModeEnabled ? 'To be Paid Amount:' : 'Paid Amount:'}
+                            </label>
                             <div className="flex flex-col items-end">
                                 <input 
                                     id="toBePaidAmount"
                                     {...register('toBePaidAmount', { 
-                                        required: 'To be paid amount is required',
+                                        required: paymentModeEnabled ? 'To be paid amount is required' : 'Paid amount is required',
                                         min: { value: 0.01, message: 'Amount must be greater than 0' },
                                         max: { value: totalWithTax, message: 'Amount cannot be greater than total' }
                                     })} 
@@ -644,6 +657,7 @@ function EditBill() {
                 </div>
 
                 {/* Payment Details */}
+                {paymentModeEnabled && (
                 <div className="card-with-dropdown">
                     <div className="card-header flex justify-between items-center">
                         <h3 className="text-lg font-semibold flex items-center">
@@ -752,6 +766,7 @@ function EditBill() {
                         )}
                     </div>
                 </div>
+                )}
                 
                 {/* Notes */}
                 <div className="card">

@@ -20,6 +20,8 @@ function LabSettings() {
   // Settings state
   const { settings, loading: settingsLoading, updateSettings } = useSettings();
   const [taxPercentage, setTaxPercentage] = useState(0);
+  const [taxEnabled, setTaxEnabled] = useState(true);
+  const [paymentModeEnabled, setPaymentModeEnabled] = useState(true);
 
 
 
@@ -46,7 +48,10 @@ function LabSettings() {
       setValue('contactInfo.email', lab.contactInfo?.email || '');
       
       if (lab.logo) {
-        setCurrentLogo(`https://pathology-lab-billing-system.onrender.com${lab.logo}`);
+        const apiBaseUrl = import.meta.env.DEV 
+          ? 'http://localhost:5000' 
+          : 'https://pathology-lab-billing-system.onrender.com';
+        setCurrentLogo(`${apiBaseUrl}${lab.logo}`);
       }
     }
   }, [lab, setValue]);
@@ -54,8 +59,12 @@ function LabSettings() {
   useEffect(() => {
     if (settings) {
       setTaxPercentage(settings.taxPercentage || 0);
+      setTaxEnabled(settings.taxEnabled !== false);
+      // If no payment modes exist, force disable payment mode
+      const shouldEnablePaymentMode = settings.paymentModeEnabled !== false && paymentModes.length > 0;
+      setPaymentModeEnabled(shouldEnablePaymentMode);
     }
-  }, [settings]);
+  }, [settings, paymentModes.length]);
 
   const onSubmit = async (data) => {
     setLoading(true);
@@ -143,7 +152,11 @@ function LabSettings() {
   // Tax settings handler
   const handleTaxUpdate = async () => {
     try {
-      await updateSettings({ taxPercentage: parseFloat(taxPercentage) || 0 });
+      await updateSettings({ 
+        taxPercentage: parseFloat(taxPercentage) || 0,
+        taxEnabled,
+        paymentModeEnabled
+      });
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update tax settings');
     }
@@ -180,7 +193,7 @@ function LabSettings() {
         </p>
       </div>
 
-      {/* Tax Settings */}
+      {/* Global Settings */}
       <div className="card">
         <div className="card-header">
           <h3 className="text-lg font-medium text-gray-900 flex items-center">
@@ -188,114 +201,180 @@ function LabSettings() {
             Global Settings
           </h3>
         </div>
-        <div className="card-body">
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
-              <label htmlFor="taxPercentage" className="block text-sm font-medium text-gray-700">
-                Tax Percentage (%)
+        <div className="card-body space-y-6">
+          {/* Tax Settings */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="text-md font-medium text-gray-900">Tax Settings</h4>
+                <p className="text-sm text-gray-500">Enable or disable tax calculation in bills</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={taxEnabled}
+                  onChange={(e) => setTaxEnabled(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
               </label>
-              <input
-                type="number"
-                id="taxPercentage"
-                value={taxPercentage}
-                onChange={(e) => setTaxPercentage(e.target.value)}
-                className="form-input mt-1"
-                placeholder="Enter tax percentage"
-                min="0"
-                max="100"
-                step="0.01"
-              />
             </div>
+            
+            {taxEnabled && (
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <label htmlFor="taxPercentage" className="block text-sm font-medium text-gray-700">
+                    Tax Percentage (%)
+                  </label>
+                  <input
+                    type="number"
+                    id="taxPercentage"
+                    value={taxPercentage}
+                    onChange={(e) => setTaxPercentage(e.target.value)}
+                    className="form-input mt-1"
+                    placeholder="Enter tax percentage"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Payment Mode Settings */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="text-md font-medium text-gray-900">Payment Mode Settings</h4>
+                <p className="text-sm text-gray-500">Enable or disable payment mode selection in bills</p>
+              </div>
+              <label className={`relative inline-flex items-center ${paymentModes.length === 0 ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                <input
+                  type="checkbox"
+                  checked={paymentModeEnabled}
+                  onChange={(e) => setPaymentModeEnabled(e.target.checked)}
+                  disabled={paymentModes.length === 0}
+                  className="sr-only peer"
+                />
+                <div className={`w-11 h-6 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${paymentModeEnabled ? 'bg-primary-600' : 'bg-gray-200'}`}></div>
+              </label>
+            </div>
+            
+            {paymentModes.length === 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Note:</strong> Payment mode is disabled because no payment modes are configured. 
+                  Add at least one payment mode to enable this feature.
+                </p>
+              </div>
+            )}
+
+            {/* Payment Mode Management */}
+            <div className="space-y-4">
+              {/* Add Payment Mode Form */}
+              {showPaymentModeForm && (
+                <form onSubmit={handlePaymentModeSubmit} className="p-4 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="text"
+                      value={paymentModeForm.name}
+                      onChange={(e) => setPaymentModeForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Payment mode name"
+                      className="form-input flex-1"
+                      autoFocus
+                    />
+                    <button type="submit" className="btn-primary btn-sm">
+                      {paymentModeForm.editing ? 'Update' : 'Add'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPaymentModeForm(false);
+                        setPaymentModeForm({ name: '', editing: null });
+                      }}
+                      className="btn-secondary btn-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Payment Modes List */}
+              {paymentModesLoading ? (
+                <div className="text-center py-4 text-sm text-gray-500">Loading payment modes...</div>
+              ) : (
+                <div className="space-y-2">
+                  {paymentModes.length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-gray-500 mb-3">No payment modes configured</p>
+                      <button
+                        onClick={() => {
+                          setPaymentModeForm({ name: '', editing: null });
+                          setShowPaymentModeForm(true);
+                        }}
+                        className="btn-primary btn-sm"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add First Payment Mode
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">Configured Payment Modes:</span>
+                        <button
+                          onClick={() => {
+                            setPaymentModeForm({ name: '', editing: null });
+                            setShowPaymentModeForm(true);
+                          }}
+                          className="btn-primary btn-sm"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Payment Mode
+                        </button>
+                      </div>
+                      {paymentModes.map((mode) => (
+                        <div key={mode._id} className="flex items-center justify-between p-3 border rounded-lg bg-white">
+                          <span className="font-medium text-gray-900">{mode.name}</span>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleEditPaymentMode(mode)}
+                              className="btn-secondary btn-sm"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePaymentMode(mode._id)}
+                              className="btn-danger btn-sm"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Save Button */}
+          <div className="flex justify-end pt-4 border-t">
             <button
               onClick={handleTaxUpdate}
               disabled={settingsLoading}
-              className="btn-primary mt-6"
+              className="btn-primary"
             >
-              {settingsLoading ? 'Saving...' : 'Update Tax'}
+              {settingsLoading ? 'Saving...' : 'Save Settings'}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Payment Modes */}
-      <div className="card">
-        <div className="card-header flex justify-between items-center">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center">
-            <CreditCard className="h-5 w-5 mr-2 text-primary-600" />
-            Payment Modes
-          </h3>
-          <button
-            onClick={() => {
-              setPaymentModeForm({ name: '', editing: null });
-              setShowPaymentModeForm(true);
-            }}
-            className="btn-primary btn-sm"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add Payment Mode
-          </button>
-        </div>
-        <div className="card-body">
-          
-          {showPaymentModeForm && (
-            <form onSubmit={handlePaymentModeSubmit} className="mb-4 p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <input
-                  type="text"
-                  value={paymentModeForm.name}
-                  onChange={(e) => setPaymentModeForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Payment mode name"
-                  className="form-input flex-1"
-                  autoFocus
-                />
-                <button type="submit" className="btn-primary btn-sm">
-                  {paymentModeForm.editing ? 'Update' : 'Add'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowPaymentModeForm(false);
-                    setPaymentModeForm({ name: '', editing: null });
-                  }}
-                  className="btn-secondary btn-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-          
-          {paymentModesLoading ? (
-            <div className="text-center py-4">Loading payment modes...</div>
-          ) : (
-            <div className="space-y-2">
-              {paymentModes.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No payment modes configured</p>
-              ) : (
-                paymentModes.map((mode) => (
-                  <div key={mode._id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <span className="font-medium">{mode.name}</span>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleEditPaymentMode(mode)}
-                        className="btn-secondary btn-sm"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeletePaymentMode(mode._id)}
-                        className="btn-danger btn-sm"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Basic Information */}

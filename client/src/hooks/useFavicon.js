@@ -25,8 +25,10 @@ const useFavicon = () => {
     };
 
     if (lab && lab.logo) {
-      // Use lab logo as favicon
-      const logoUrl = `https://pathology-lab-billing-system.onrender.com${lab.logo}`;
+      const apiBaseUrl = import.meta.env.DEV 
+        ? 'http://localhost:5000' 
+        : 'https://pathology-lab-billing-system.onrender.com';
+      const logoUrl = `${apiBaseUrl}${lab.logo}`;
       setFavicon(logoUrl);
     } else {
       // Fallback to default favicon

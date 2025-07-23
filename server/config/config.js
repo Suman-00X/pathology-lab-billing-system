@@ -11,8 +11,6 @@ export const config = {
   // Database Configuration
   MONGODB_URI: process.env.MONGODB_URI || 'mongodb://localhost:27017/pathology_lab_billing',
 
-
-  
   // Security Configuration
   JWT_SECRET: process.env.JWT_SECRET || 'pathology-lab-billing-default-secret-change-in-production',
   
@@ -21,7 +19,9 @@ export const config = {
   UPLOAD_PATH: process.env.UPLOAD_PATH || './uploads',
   
   // CORS Configuration
-  CLIENT_URL: process.env.CLIENT_URL || 'https://my-pathlab.netlify.app'
+  CLIENT_URL: process.env.NODE_ENV === 'development' 
+    ? 'http://localhost:3000' 
+    : (process.env.CLIENT_URL || 'https://my-pathlab.netlify.app')
 };
 
 // Environment validation function

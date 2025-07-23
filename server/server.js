@@ -43,8 +43,12 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: config.CLIENT_URL,
-  credentials: true
+  origin: config.NODE_ENV === 'development' 
+    ? ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173', 'http://127.0.0.1:5173'] 
+    : config.CLIENT_URL,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
