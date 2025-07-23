@@ -462,7 +462,7 @@ function EditBill() {
                                 id="patientName"
                                 {...register('patientName', { required: 'Patient name is required' })} 
                                 placeholder="Enter patient name" 
-                                className="input" 
+                                className="input-editable" 
                             />
                             {errors.patientName && <span className="text-red-500 text-sm">{errors.patientName.message}</span>}
                         </div>
@@ -476,7 +476,7 @@ function EditBill() {
                                 {...register('patientAge', { required: 'Age is required', min: 1, max: 150 })} 
                                 type="number" 
                                 placeholder="Enter age" 
-                                className="input" 
+                                className="input-editable" 
                             />
                             {errors.patientAge && <span className="text-red-500 text-sm">{errors.patientAge.message}</span>}
                         </div>
@@ -485,7 +485,7 @@ function EditBill() {
                             <label htmlFor="patientGender" className="block text-sm font-medium text-gray-700 mb-1">
                                 Gender *
                             </label>
-                            <select id="patientGender" {...register('patientGender', { required: 'Gender is required' })} className="input">
+                            <select id="patientGender" {...register('patientGender', { required: 'Gender is required' })} className="input-editable">
                                 <option value="">Select Gender</option>
                                 <option value="Male">Male</option>
                                 <option value="Female">Female</option>
@@ -498,12 +498,12 @@ function EditBill() {
                             <label htmlFor="patientPhone" className="block text-sm font-medium text-gray-700 mb-1">
                                 Phone Number *
                             </label>
-                            <input 
-                                id="patientPhone"
-                                {...register('patientPhone', { required: 'Phone number is required' })} 
-                                placeholder="Enter phone number" 
-                                className="input" 
-                            />
+                                                            <input 
+                                    id="patientPhone"
+                                    {...register('patientPhone', { required: 'Phone number is required' })} 
+                                    placeholder="Enter phone number" 
+                                    className="input-editable" 
+                                />
                             {errors.patientPhone && <span className="text-red-500 text-sm">{errors.patientPhone.message}</span>}
                         </div>
                         
@@ -515,7 +515,7 @@ function EditBill() {
                                 id="patientStreet"
                                 {...register('patientStreet')} 
                                 placeholder="Enter street address" 
-                                className="input" 
+                                className="input-editable" 
                             />
                         </div>
                         
@@ -527,7 +527,7 @@ function EditBill() {
                                 id="patientCity"
                                 {...register('patientCity')} 
                                 placeholder="Enter city" 
-                                className="input" 
+                                className="input-editable" 
                             />
                         </div>
                         
@@ -539,7 +539,7 @@ function EditBill() {
                                 id="patientState"
                                 {...register('patientState')} 
                                 placeholder="Enter state" 
-                                className="input" 
+                                className="input-editable" 
                             />
                         </div>
                         
@@ -551,7 +551,7 @@ function EditBill() {
                                 id="patientPincode"
                                 {...register('patientPincode')} 
                                 placeholder="Enter pincode" 
-                                className="input" 
+                                className="input-editable" 
                             />
                         </div>
                     </div>
@@ -602,7 +602,7 @@ function EditBill() {
                                 id="doctorName"
                                 {...register('doctorName', { required: 'Doctor name is required' })} 
                                 placeholder="Enter doctor name" 
-                                className="input" 
+                                className="input-editable" 
                             />
                             {errors.doctorName && <span className="text-red-500 text-sm">{errors.doctorName.message}</span>}
                         </div>
@@ -615,7 +615,7 @@ function EditBill() {
                                 id="doctorQualification"
                                 {...register('doctorQualification')} 
                                 placeholder="Enter qualification" 
-                                className="input" 
+                                className="input-editable" 
                             />
                         </div>
                     </div>
@@ -684,7 +684,7 @@ function EditBill() {
                                     })} 
                                     type="number" 
                                     step="0.01"
-                                    className="input w-32 text-right" 
+                                    className="input-editable w-32 text-right" 
                                 />
                                 {errors.toBePaidAmount && <span className="text-red-500 text-xs mt-1">{errors.toBePaidAmount.message}</span>}
                             </div>
@@ -731,7 +731,7 @@ function EditBill() {
                                             })} 
                                             type="number" 
                                             step="0.01"
-                                            className="input w-32 text-right" 
+                                            className="input-editable w-32 text-right" 
                                             placeholder="0.00"
                                         />
                                         {errors.paidAmount && <span className="text-red-500 text-xs mt-1">{errors.paidAmount.message}</span>}
@@ -815,7 +815,7 @@ function EditBill() {
                                                             forceUpdate();
                                                         }
                                                     })}
-                                                    className="input"
+                                                    className="input-editable"
                                                     placeholder="0.00"
                                                 />
                                             </div>
@@ -827,7 +827,7 @@ function EditBill() {
                                                 <input
                                                     type="text"
                                                     {...register(`paymentDetails.${index}.reference`)}
-                                                    className="input"
+                                                    className="input-editable"
                                                     placeholder="Reference number"
                                                 />
                                             </div>
@@ -874,7 +874,7 @@ function EditBill() {
                             id="notes"
                             {...register('notes')} 
                             placeholder="Additional notes..." 
-                            className="input w-full" 
+                            className="input-editable w-full" 
                             rows="3"
                         ></textarea>
                     </div>
