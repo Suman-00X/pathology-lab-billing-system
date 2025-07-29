@@ -37,28 +37,29 @@ function BillDetails() {
             <head>
                 <title>Bill #${bill.billNumber}</title>
                 <style>
-                    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-                    .logo { max-height: 60px; margin-bottom: 10px; }
-                    .lab-name { font-size: 24px; font-weight: bold; margin: 5px 0; }
-                    .lab-info { font-size: 12px; color: #666; }
+                    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; font-size: 60%; }
+                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; position: relative; }
+                    .bill-number { position: absolute; top: 0; right: 0; font-size: 10.8px; font-weight: bold; }
+                    .logo { max-height: 36px; margin-bottom: 6px; }
+                    .lab-name { font-size: 14.4px; font-weight: bold; margin: 3px 0; }
+                    .lab-info { font-size: 7.2px; color: #666; }
                     .bill-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
                     .patient-info, .doctor-info { flex: 1; }
                     .section { margin-bottom: 25px; }
-                    .section-title { font-size: 18px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px; }
+                    .section-title { font-size: 10.8px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px; }
                     .row { display: flex; justify-content: space-between; margin-bottom: 8px; }
                     .label { font-weight: bold; }
                     .tests-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                    .tests-table th, .tests-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    .tests-table th, .tests-table td { border: 1px solid #ddd; padding: 4.8px; text-align: left; }
                     .tests-table th { background-color: #f5f5f5; }
                     .total-section { margin-top: 20px; border-top: 2px solid #333; padding-top: 15px; }
-                    .total-row { font-weight: bold; font-size: 16px; }
-                    .status { padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; }
+                    .total-row { font-weight: bold; font-size: 9.6px; }
+                    .status { padding: 3px 6px; border-radius: 9px; font-size: 7.2px; font-weight: bold; }
                     .status-paid { background-color: #d4edda; color: #155724; }
                     .status-partial { background-color: #fff3cd; color: #856404; }
                     .status-pending { background-color: #f8d7da; color: #721c24; }
-                    .payment-method { font-size: 12px; font-weight: 500; color: #374151; }
-                    .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+                    .payment-method { font-size: 7.2px; font-weight: 500; color: #374151; }
+                    .footer { margin-top: 40px; text-align: center; font-size: 7.2px; color: #666; }
                     @media print {
                         body { margin: 0; }
                         .no-print { display: none; }
@@ -91,31 +92,19 @@ function BillDetails() {
                     ${lab?.contactInfo?.phone ? `Phone: ${lab.contactInfo.phone}` : ''}
                     ${lab?.contactInfo?.email ? ` | Email: ${lab.contactInfo.email}` : ''}
                 </div>
+                <div class="lab-info" style="margin-top: 10px;">
+                    <strong>Bill Date:</strong> ${new Date(bill.billDate).toLocaleDateString()} | 
+                    <strong>Sample Collection:</strong> ${new Date(bill.sampleCollectionDate).toLocaleDateString()}
+                </div>
             </div>
 
             <div class="bill-info">
                 <div class="patient-info">
                     <div class="section-title">Patient Information</div>
-                    <div class="row"><span class="label">Name:</span> <span>${bill.patient.name}</span></div>
-                    <div class="row"><span class="label">Age:</span> <span>${bill.patient.age} years</span></div>
-                    <div class="row"><span class="label">Gender:</span> <span>${bill.patient.gender}</span></div>
-                    <div class="row"><span class="label">Phone:</span> <span>${bill.patient.phone}</span></div>
-                    <div class="row"><span class="label">Address:</span> <span>${bill.patient.address.street}, ${bill.patient.address.city}, ${bill.patient.address.state} - ${bill.patient.address.pincode}</span></div>
+                    <div class="row"><span class="label">Patient Details:</span> <span>${bill.patient.name} | Age: ${bill.patient.age} years | Gender: ${bill.patient.gender}</span></div>
+                    <div class="row"><span class="label">Contact Details:</span> <span>Phone: ${bill.patient.phone} | Address: ${bill.patient.address.street}, ${bill.patient.address.city}, ${bill.patient.address.state} - ${bill.patient.address.pincode}</span></div>
+                    <div class="row"><span class="label">Referred Doctor:</span> <span>${bill.referredBy.doctorName}${bill.referredBy.qualification ? ` (${bill.referredBy.qualification})` : ''}</span></div>
                 </div>
-                <div class="doctor-info">
-                    <div class="section-title">Referring Doctor</div>
-                    <div class="row"><span class="label">Name:</span> <span>${bill.referredBy.doctorName}</span></div>
-                    <div class="row"><span class="label">Qualification:</span> <span>${bill.referredBy.qualification || 'N/A'}</span></div>
-                    <div class="row"><span class="label">Phone:</span> <span>${bill.referredBy.phone || 'N/A'}</span></div>
-                </div>
-            </div>
-
-            <div class="section">
-                <div class="section-title">Bill Information</div>
-                <div class="row"><span class="label">Bill Number:</span> <span>${bill.billNumber}</span></div>
-                <div class="row"><span class="label">Bill Date:</span> <span>${new Date(bill.billDate).toLocaleDateString()}</span></div>
-                <div class="row"><span class="label">Sample Collection:</span> <span>${new Date(bill.sampleCollectionDate).toLocaleDateString()}</span></div>
-                <div class="row"><span class="label">Report Date:</span> <span>${bill.reportDate ? new Date(bill.reportDate).toLocaleDateString() : 'Pending'}</span></div>
             </div>
 
             <div class="section">
@@ -159,6 +148,10 @@ function BillDetails() {
             <div class="footer">
                 <p>Thank you for choosing our services!</p>
                 <p>For any queries, please contact us at ${lab?.contactInfo?.phone || ''}</p>
+                <div style="margin-top: 20px; text-align: right;">
+                    <div style="border-top: 1px solid #333; width: 150px; margin-left: auto; margin-bottom: 5px;"></div>
+                    <span style="font-size: 7.2px;">Biller</span>
+                </div>
             </div>
         `;
     };
