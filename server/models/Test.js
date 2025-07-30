@@ -15,9 +15,10 @@ const testSchema = new mongoose.Schema({
     trim: true,
     required: [true, 'Normal range is required']
   },
-  methodology: {
+  units: {
     type: String,
-    trim: true
+    trim: true,
+    required: [true, 'Units are required']
   },
   isActive: {
     type: Boolean,

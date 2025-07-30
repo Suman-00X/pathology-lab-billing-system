@@ -53,7 +53,7 @@ function AboutUs() {
                   </li>
                   <li className="flex items-start">
                     <span className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                    Test group management with pricing and methodology tracking
+                    Test group management with pricing and units tracking
                   </li>
                   <li className="flex items-start">
                     <span className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
@@ -146,7 +146,7 @@ function AboutUs() {
               <ul className="space-y-2 text-sm text-gray-700">
                 <li>• Test groups with pricing</li>
                 <li>• Individual test configuration</li>
-                <li>• Methodology and normal ranges</li>
+                                        <li>• Units and normal ranges</li>
                 <li>• Sample type management</li>
                 <li>• Active/inactive status</li>
               </ul>

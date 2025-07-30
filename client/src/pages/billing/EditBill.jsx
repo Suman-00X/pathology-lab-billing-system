@@ -281,13 +281,13 @@ function EditBill() {
             setValue('patientAge', bill.patient.age);
             setValue('patientGender', bill.patient.gender);
             setValue('patientPhone', bill.patient.phone);
-            setValue('patientStreet', bill.patient.address.street || '');
-            setValue('patientCity', bill.patient.address.city || '');
-            setValue('patientState', bill.patient.address.state || '');
-            setValue('patientPincode', bill.patient.address.pincode || '');
+            setValue('patientAddress', bill.patient.address || '');
             setValue('doctorName', bill.referredBy.doctorName);
             setValue('doctorQualification', bill.referredBy.qualification || '');
             setValue('doctorPhone', bill.referredBy.phone || '');
+            setValue('referringCustomer', bill.referringCustomer || '');
+            setValue('sampleCollectionDate', bill.sampleCollectionDate ? new Date(bill.sampleCollectionDate).toISOString().split('T')[0] : '');
+            setValue('sampleReceivedDate', bill.sampleReceivedDate ? new Date(bill.sampleReceivedDate).toISOString().split('T')[0] : '');
             setValue('testGroups', bill.testGroups.map(g => g._id));
             setValue('toBePaidAmount', bill.toBePaidAmount || bill.finalAmount);
             setValue('paidAmount', bill.paidAmount || 0);
@@ -415,19 +415,17 @@ function EditBill() {
                 age: parseInt(data.patientAge),
                 gender: data.patientGender,
                 phone: data.patientPhone,
-                address: {
-                    street: data.patientStreet || '',
-                    city: data.patientCity || '',
-                    state: data.patientState || '',
-                    pincode: data.patientPincode || '',
-                }
+                address: data.patientAddress || '',
             },
             referredBy: {
                 doctorName: data.doctorName,
                 qualification: data.doctorQualification || '',
                 phone: data.doctorPhone,
             },
+            referringCustomer: data.referringCustomer || '',
             testGroups: data.testGroups,
+            sampleCollectionDate: data.sampleCollectionDate,
+            sampleReceivedDate: data.sampleReceivedDate,
             toBePaidAmount: finalAmount,
             ...(paymentModeEnabled ? {} : { paidAmount: parseFloat(data.paidAmount || 0) }),
             paymentDetails: paymentModeEnabled ? data.paymentDetails.filter(p => p.mode && p.mode.trim() !== '' && parseFloat(p.amount) > 0) : [],
@@ -508,51 +506,17 @@ function EditBill() {
                         </div>
                         
                         <div className="md:col-span-2">
-                            <label htmlFor="patientStreet" className="block text-sm font-medium text-gray-700 mb-1">
-                                Street Address
+                            <label htmlFor="patientAddress" className="block text-sm font-medium text-gray-700 mb-1">
+                                Address *
                             </label>
-                            <input 
-                                id="patientStreet"
-                                {...register('patientStreet')} 
-                                placeholder="Enter street address" 
+                            <textarea 
+                                id="patientAddress"
+                                {...register('patientAddress', { required: 'Address is required' })} 
+                                placeholder="Enter complete address" 
                                 className="input-editable" 
+                                rows="3"
                             />
-                        </div>
-                        
-                        <div>
-                            <label htmlFor="patientCity" className="block text-sm font-medium text-gray-700 mb-1">
-                                City
-                            </label>
-                            <input 
-                                id="patientCity"
-                                {...register('patientCity')} 
-                                placeholder="Enter city" 
-                                className="input-editable" 
-                            />
-                        </div>
-                        
-                        <div>
-                            <label htmlFor="patientState" className="block text-sm font-medium text-gray-700 mb-1">
-                                State
-                            </label>
-                            <input 
-                                id="patientState"
-                                {...register('patientState')} 
-                                placeholder="Enter state" 
-                                className="input-editable" 
-                            />
-                        </div>
-                        
-                        <div>
-                            <label htmlFor="patientPincode" className="block text-sm font-medium text-gray-700 mb-1">
-                                Pincode
-                            </label>
-                            <input 
-                                id="patientPincode"
-                                {...register('patientPincode')} 
-                                placeholder="Enter pincode" 
-                                className="input-editable" 
-                            />
+                            {errors.patientAddress && <span className="text-red-500 text-sm">{errors.patientAddress.message}</span>}
                         </div>
                     </div>
                 </div>
@@ -617,6 +581,50 @@ function EditBill() {
                                 placeholder="Enter qualification" 
                                 className="input-editable" 
                             />
+                        </div>
+                        
+                        <div>
+                            <label htmlFor="referringCustomer" className="block text-sm font-medium text-gray-700 mb-1">
+                                Referring Customer
+                            </label>
+                            <input 
+                                id="referringCustomer"
+                                {...register('referringCustomer')} 
+                                placeholder="Enter referring customer name" 
+                                className="input-editable" 
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Date Information */}
+                <div className="card">
+                    <div className="card-header"><h3 className="text-lg font-semibold">Date Information</h3></div>
+                    <div className="card-body grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="sampleCollectionDate" className="block text-sm font-medium text-gray-700 mb-1">
+                                Sample Collection Date *
+                            </label>
+                            <input 
+                                id="sampleCollectionDate"
+                                type="date"
+                                {...register('sampleCollectionDate', { required: 'Sample collection date is required' })} 
+                                className="input-editable" 
+                            />
+                            {errors.sampleCollectionDate && <span className="text-red-500 text-sm">{errors.sampleCollectionDate.message}</span>}
+                        </div>
+                        
+                        <div>
+                            <label htmlFor="sampleReceivedDate" className="block text-sm font-medium text-gray-700 mb-1">
+                                Sample Received Date *
+                            </label>
+                            <input 
+                                id="sampleReceivedDate"
+                                type="date"
+                                {...register('sampleReceivedDate', { required: 'Sample received date is required' })} 
+                                className="input-editable" 
+                            />
+                            {errors.sampleReceivedDate && <span className="text-red-500 text-sm">{errors.sampleReceivedDate.message}</span>}
                         </div>
                     </div>
                 </div>

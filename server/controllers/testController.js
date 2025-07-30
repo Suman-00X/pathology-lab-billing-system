@@ -49,15 +49,15 @@ export const testController = {
         code,
         price,
         normalRange,
-        methodology,
+        units,
         sampleType,
         preparationInstructions
       } = req.body;
 
       // Validation
-      if (!name || !price || !normalRange || !normalRange.min || !normalRange.max || !normalRange.unit) {
+      if (!name || !price || !normalRange || !units) {
         return res.status(400).json({ 
-          message: 'Name, price, and complete normal range (min, max, unit) are required' 
+          message: 'Name, price, normal range, and units are required' 
         });
       }
 
@@ -78,7 +78,7 @@ export const testController = {
         code: testCode.toUpperCase(),
         price,
         normalRange,
-        methodology,
+        units,
         sampleType,
         preparationInstructions
       });
@@ -87,7 +87,7 @@ export const testController = {
       
       res.status(201).json({ message: 'Test created successfully', test });
     } catch (error) {
-  
+      console.error('Error creating test:', error);
       if (error.code === 11000) {
         res.status(400).json({ message: 'Test with this code already exists' });
       } else {
@@ -104,7 +104,7 @@ export const testController = {
         code,
         price,
         normalRange,
-        methodology,
+        units,
         sampleType,
         preparationInstructions,
         isActive
@@ -127,7 +127,7 @@ export const testController = {
       if (code !== undefined) updateData.code = code.toUpperCase();
       if (price !== undefined) updateData.price = price;
       if (normalRange !== undefined) updateData.normalRange = normalRange;
-      if (methodology !== undefined) updateData.methodology = methodology;
+      if (units !== undefined) updateData.units = units;
       if (sampleType !== undefined) updateData.sampleType = sampleType;
       if (preparationInstructions !== undefined) updateData.preparationInstructions = preparationInstructions;
       if (isActive !== undefined) updateData.isActive = isActive;
@@ -208,9 +208,8 @@ export const testController = {
           const testData = tests[i];
           
           // Validate required fields
-          if (!testData.name || !testData.price || !testData.normalRange || 
-              !testData.normalRange.min || !testData.normalRange.max || !testData.normalRange.unit) {
-            errors.push(`Row ${i + 1}: Name, price, and complete normal range are required`);
+          if (!testData.name || !testData.price || !testData.normalRange || !testData.units) {
+            errors.push(`Row ${i + 1}: Name, price, normal range, and units are required`);
             continue;
           }
 

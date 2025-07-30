@@ -38,7 +38,7 @@ export const reportController = {
   async getReportByBillId(req, res) {
     try {
       const { billId } = req.params;
-      const report = await Report.findOne({ bill: billId }).populate('results.test', 'name methodology normalRange');
+      const report = await Report.findOne({ bill: billId }).populate('results.test', 'name units normalRange');
       if (!report) {
         return res.status(404).json({ message: 'Report not found for this bill' });
       }
@@ -54,7 +54,7 @@ export const reportController = {
       const { reportId } = req.params;
       const { results, reportDate } = req.body; // Expects an array of result objects and optional reportDate
 
-      const report = await Report.findById(reportId).populate('results.test', 'name methodology normalRange');
+      const report = await Report.findById(reportId).populate('results.test', 'name units normalRange');
       if (!report) {
         return res.status(404).json({ message: 'Report not found' });
       }
@@ -83,11 +83,33 @@ export const reportController = {
       await report.save();
       
       // Fetch the updated report with fresh population
-      const updatedReport = await Report.findById(reportId).populate('results.test', 'name methodology normalRange');
+      const updatedReport = await Report.findById(reportId).populate('results.test', 'name units normalRange');
 
       res.json({ message: 'Report updated successfully', report: updatedReport });
     } catch (error) {
       res.status(500).json({ message: 'Error updating report', error: error.message });
+    }
+  },
+
+  // Set report date when report is first generated or printed
+  async setReportDate(req, res) {
+    try {
+      const { billId } = req.params;
+      
+      const report = await Report.findOne({ bill: billId });
+      if (!report) {
+        return res.status(404).json({ message: 'Report not found for this bill' });
+      }
+
+      // Only set report date if it's not already set
+      if (!report.reportDate) {
+        report.reportDate = new Date();
+        await report.save();
+      }
+
+      res.json({ message: 'Report date set successfully', reportDate: report.reportDate });
+    } catch (error) {
+      res.status(500).json({ message: 'Error setting report date', error: error.message });
     }
   },
 }; 

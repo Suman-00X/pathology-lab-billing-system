@@ -66,6 +66,7 @@ export const billController = {
        const newBill = new Bill({
          patient,
          referredBy,
+         referringCustomer: req.body.referringCustomer || '',
          testGroups: testGroupIds,
          totalAmount,
          taxAmount,
@@ -82,6 +83,7 @@ export const billController = {
            if (totalPayments > 0) return 'Partially Paid';
            return 'Pending';
          })(),
+         sampleReceivedDate: req.body.sampleReceivedDate || new Date(),
          notes
        });
       await newBill.save();
@@ -93,7 +95,7 @@ export const billController = {
           reportResults.push({
             test: test._id,
             name: test.name,
-            methodology: test.methodology,
+            units: test.units,
             normalRange: test.normalRange
           });
         }
@@ -141,6 +143,7 @@ export const billController = {
              const {
          patient,
          referredBy,
+         referringCustomer,
          testGroups: testGroupIds,
          toBePaidAmount,
          paymentDetails,
@@ -149,6 +152,7 @@ export const billController = {
          dues,
          status,
          reportDate,
+         sampleReceivedDate,
          notes,
          isPaymentModeEnabled
        } = req.body;
@@ -182,6 +186,8 @@ export const billController = {
        if (dues !== undefined) billToUpdate.dues = Number(dues);
        if (status) billToUpdate.status = status;
        if (reportDate) billToUpdate.reportDate = reportDate;
+       if (sampleReceivedDate) billToUpdate.sampleReceivedDate = sampleReceivedDate;
+       if (referringCustomer !== undefined) billToUpdate.referringCustomer = referringCustomer;
        if (notes !== undefined) billToUpdate.notes = notes;
        if (isPaymentModeEnabled !== undefined) billToUpdate.isPaymentModeEnabled = Boolean(isPaymentModeEnabled);
 
@@ -207,7 +213,7 @@ export const billController = {
             reportResults.push({
               test: test._id,
               name: test.name,
-              methodology: test.methodology,
+              units: test.units,
               normalRange: test.normalRange,
             });
           }
@@ -528,7 +534,7 @@ export const billController = {
   async getBillById(req, res) {
     try {
       const bill = await Bill.findById(req.params.id)
-        .populate({ path: 'testGroups', select: 'name price tests', populate: { path: 'tests', select: 'name methodology normalRange' }})
+        .populate({ path: 'testGroups', select: 'name price tests', populate: { path: 'tests', select: 'name units normalRange' }})
         .populate({ path: 'paymentDetails.mode', select: 'name' });
       
       if (!bill) return res.status(404).json({ message: 'Bill not found' });

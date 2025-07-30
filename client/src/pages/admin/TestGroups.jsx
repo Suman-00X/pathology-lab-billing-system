@@ -3,11 +3,11 @@ import { useTestGroups } from '../../hooks/useApiHooks';
 import { TestTube2, Plus, Edit, Trash2, ChevronDown, ChevronRight, X } from 'lucide-react';
 
 const TestForm = ({ test, onSave, onCancel, loading = false }) => {
-  const [formData, setFormData] = useState({ name: '', methodology: '', normalRange: '' });
+  const [formData, setFormData] = useState({ name: '', units: '', normalRange: '' });
 
   useEffect(() => {
     if (test) {
-      setFormData({ name: test.name, methodology: test.methodology || '', normalRange: test.normalRange });
+      setFormData({ name: test.name, units: test.units || '', normalRange: test.normalRange });
     }
   }, [test]);
 
@@ -28,9 +28,10 @@ const TestForm = ({ test, onSave, onCancel, loading = false }) => {
         />
         <input
             type="text"
-            placeholder="Methodology"
-            value={formData.methodology}
-            onChange={(e) => setFormData({ ...formData, methodology: e.target.value })}
+            placeholder="Units *"
+            required
+            value={formData.units}
+            onChange={(e) => setFormData({ ...formData, units: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md"
         />
         <input
@@ -95,6 +96,8 @@ const TestGroupRow = ({ group, onEdit, onDelete, onAddTest, onUpdateTest, onRemo
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{group.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-700">₹{(group.price || 0).toFixed(2)}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-gray-700">{group.sampleType || 'N/A'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-gray-700">{group.sampleTestedIn || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-700">{group.tests.length}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -110,7 +113,7 @@ const TestGroupRow = ({ group, onEdit, onDelete, onAddTest, onUpdateTest, onRemo
             </tr>
             {isExpanded && (
                 <tr>
-                    <td colSpan="6" className="p-4 bg-gray-50">
+                    <td colSpan="8" className="p-4 bg-gray-50">
                         <div className="space-y-4">
                             <h4 className="font-semibold text-gray-800">Tests in {group.name}</h4>
                             {group.tests.length > 0 ? (
@@ -119,7 +122,7 @@ const TestGroupRow = ({ group, onEdit, onDelete, onAddTest, onUpdateTest, onRemo
                                         <li key={test._id} className="p-3 bg-white rounded-md shadow-sm flex justify-between items-center">
                                             <div>
                                                 <p className="font-medium text-gray-900">{test.name}</p>
-                                                <p className="text-sm text-gray-600">Range: {test.normalRange} | Method: {test.methodology || 'N/A'}</p>
+                                                <p className="text-sm text-gray-600">Range: {test.normalRange} | Units: {test.units || 'N/A'}</p>
                                             </div>
                                             <div className="space-x-2">
                                                 <button onClick={() => setEditingTest(test)} className="text-primary-600"><Edit size={16}/></button>
@@ -151,13 +154,31 @@ const TestGroupRow = ({ group, onEdit, onDelete, onAddTest, onUpdateTest, onRemo
 };
 
 const TestGroupModal = ({ group, isOpen, onClose, onSave, loading = false }) => {
-    const [formData, setFormData] = useState({ name: '', price: '', isActive: true });
+    const [formData, setFormData] = useState({ 
+      name: '', 
+      price: '', 
+      sampleType: '', 
+      sampleTestedIn: '', 
+      isActive: true 
+    });
   
     useEffect(() => {
       if (group) {
-        setFormData({ name: group.name || '', price: group.price || '', isActive: group.isActive });
+        setFormData({ 
+          name: group.name || '', 
+          price: group.price || '', 
+          sampleType: group.sampleType || '', 
+          sampleTestedIn: group.sampleTestedIn || '', 
+          isActive: group.isActive 
+        });
       } else {
-        setFormData({ name: '', price: '', isActive: true });
+        setFormData({ 
+          name: '', 
+          price: '', 
+          sampleType: '', 
+          sampleTestedIn: '', 
+          isActive: true 
+        });
       }
     }, [group]);
   
@@ -190,6 +211,22 @@ const TestGroupModal = ({ group, isOpen, onClose, onSave, loading = false }) => 
               required
               value={formData.price}
               onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            />
+            <input
+              type="text"
+              placeholder="Sample Type *"
+              required
+              value={formData.sampleType}
+              onChange={(e) => setFormData({ ...formData, sampleType: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            />
+            <input
+              type="text"
+              placeholder="Sample Tested In *"
+              required
+              value={formData.sampleTestedIn}
+              onChange={(e) => setFormData({ ...formData, sampleTestedIn: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md"
             />
             <div className="flex items-center">
@@ -281,6 +318,8 @@ function TestGroups() {
               <th className="px-6 py-3 text-left w-16"></th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sample Type</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sample Tested In</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tests</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th className="relative px-6 py-3"><span className="sr-only">Actions</span></th>

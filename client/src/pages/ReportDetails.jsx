@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useReport, useBill } from '../hooks/useApiHooks';
-import { FileHeart, Save, Edit, X } from 'lucide-react';
+import { useReport, useBill, useLab } from '../hooks/useApiHooks';
+import { FileHeart, Save, Edit, X, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 function ReportDetails() {
     const { billId } = useParams();
     const { report, loading: loadingReport, error, updateReport } = useReport(billId);
     const { bill, loading: loadingBill } = useBill(billId);
+    const { lab } = useLab();
     const [results, setResults] = useState([]);
     const [reportDate, setReportDate] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -16,6 +17,172 @@ function ReportDetails() {
     const [originalReportDate, setOriginalReportDate] = useState('');
     const [activeTestGroupTab, setActiveTestGroupTab] = useState(0);
     const [groupedResults, setGroupedResults] = useState({});
+
+    // Print functionality
+    const handlePrintTestGroup = async () => {
+        // Set report date automatically if not already set
+        if (!report.reportDate) {
+            try {
+                const response = await fetch(`/api/reports/bill/${billId}/set-report-date`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    setReportDate(new Date(data.reportDate).toISOString().split('T')[0]);
+                    setOriginalReportDate(new Date(data.reportDate).toISOString().split('T')[0]);
+                    toast.success('Report date set automatically');
+                }
+            } catch (error) {
+                console.error('Error setting report date:', error);
+            }
+        }
+        
+        const activeGroup = groupedResults[activeTestGroupTab];
+        if (!activeGroup) return;
+        
+        const printWindow = window.open('', '_blank');
+        const printContent = generateTestGroupPrintContent(activeGroup);
+        
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>.</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; font-size: 12px; }
+                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+                    .logo { max-height: 60px; margin-bottom: 10px; }
+                    .lab-name { font-size: 24px; font-weight: bold; margin: 5px 0; }
+                    .lab-info { font-size: 12px; color: #666; }
+                    .patient-info { margin-bottom: 30px; }
+                    .section-title { font-size: 18px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px; }
+                    .row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+                    .label { font-weight: bold; }
+                    .tests-table { width: 100%; border-collapse: collapse; margin-top: 15px; page-break-inside: auto; }
+                    .tests-table th, .tests-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    .tests-table th { background-color: #f5f5f5; }
+                    .tests-table tr { page-break-inside: avoid; page-break-after: auto; }
+                    .flag-normal { background-color: #d4edda; color: #155724; }
+                    .flag-high { background-color: #f8d7da; color: #721c24; }
+                    .flag-low { background-color: #d1ecf1; color: #0c5460; }
+                    .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+                    .signature-section { margin-top: 30px; text-align: right; }
+                    .signature-line { border-top: 1px solid #333; width: 200px; margin-left: auto; margin-bottom: 5px; }
+                    @media print {
+                        body { margin: 0; }
+                        .no-print { display: none; }
+                        .page-break { page-break-before: always; }
+                    }
+                </style>
+            </head>
+            <body>
+                ${printContent}
+            </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 100);
+    };
+
+    const generateTestGroupPrintContent = (activeGroup) => {
+        const apiBaseUrl = import.meta.env.DEV 
+          ? 'http://localhost:5000' 
+          : 'https://pathology-lab-billing-system.onrender.com';
+        
+        // Calculate how many tests per page (approximately 15-20 tests per page)
+        const testsPerPage = 15;
+        const totalPages = Math.ceil(activeGroup.tests.length / testsPerPage);
+        
+        let content = `
+            <div class="header">
+                <div class="lab-info" style="margin-bottom: 10px; text-align: right;">
+                    <strong>Bill Number:</strong> ${bill.billNumber}
+                </div>
+                ${lab?.logo ? `<img src="${apiBaseUrl}${lab.logo}" alt="Lab Logo" class="logo">` : ''}
+                <div class="lab-name">${lab?.name || 'Pathology Lab'}</div>
+                <div class="lab-info">
+                    ${lab?.address ? `${lab.address.street}, ${lab.address.city}, ${lab.address.state} - ${lab.address.pincode}` : ''} | 
+                    ${lab?.contactInfo?.phone ? `Phone: ${lab.contactInfo.phone}` : ''}
+                    ${lab?.contactInfo?.email ? ` | Email: ${lab.contactInfo.email}` : ''}
+                </div>
+            </div>
+
+            <div class="patient-info">
+                <div class="row"><span class="label">Patient Details:</span> <span>${bill.patient.name} | Age: ${bill.patient.age} years | Gender: ${bill.patient.gender}</span></div>
+                <div class="row"><span class="label">Referred Doctor:</span> <span>${bill.referredBy.doctorName}${bill.referredBy.qualification ? ` (${bill.referredBy.qualification})` : ''}</span></div>
+                ${bill.referringCustomer ? `<div class="row"><span class="label">Referring Customer:</span> <span>${bill.referringCustomer}</span></div>` : ''}
+                <div class="row"><span class="label">Dates:</span> <span>Sample Collection: ${new Date(bill.sampleCollectionDate).toLocaleDateString()} | Sample Received: ${new Date(bill.sampleReceivedDate).toLocaleDateString()} | Report: ${report.reportDate ? new Date(report.reportDate).toLocaleDateString() : 'Pending'}</span></div>
+            </div>
+        `;
+
+        // Generate test results with pagination
+        for (let page = 0; page < totalPages; page++) {
+            if (page > 0) {
+                content += '<div class="page-break"></div>';
+            }
+            
+            const startIndex = page * testsPerPage;
+            const endIndex = Math.min(startIndex + testsPerPage, activeGroup.tests.length);
+            const pageTests = activeGroup.tests.slice(startIndex, endIndex);
+            
+            content += `
+                <div class="section">
+                    <div class="section-title">${activeGroup.name} - Test Results${totalPages > 1 ? ` (Page ${page + 1} of ${totalPages})` : ''}</div>
+                    <div class="row" style="margin-bottom: 10px;">
+                        <span class="label">Sample Type:</span> <span>${activeGroup.sampleType || 'N/A'}</span>
+                    </div>
+                    <div class="row" style="margin-bottom: 15px;">
+                        <span class="label">Sample Tested In (Reagent):</span> <span>${activeGroup.sampleTestedIn || 'N/A'}</span>
+                    </div>
+                    <table class="tests-table">
+                        <thead>
+                            <tr>
+                                <th>Test Name</th>
+                                <th>Result</th>
+                                <th>Flag</th>
+                                <th>Normal Range</th>
+                                <th>Units</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${pageTests.map(test => `
+                                <tr>
+                                    <td>${test.test.name}</td>
+                                    <td>${test.result || '-'}</td>
+                                    <td class="${test.flag === 'High' ? 'flag-high' : test.flag === 'Low' ? 'flag-low' : test.flag === 'Normal' ? 'flag-normal' : ''}">${test.flag || '-'}</td>
+                                    <td>${test.test.normalRange || 'N/A'}</td>
+                                    <td>${test.test.units || 'N/A'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Add footer with signature on last page
+        content += `
+            <div class="footer">
+                <p>Thank you for choosing our services!</p>
+                <p>For any queries, please contact us at ${lab?.contactInfo?.phone || ''}</p>
+                <div class="signature-section">
+                    <div class="signature-line"></div>
+                    <span>Pathologist</span>
+                </div>
+            </div>
+        `;
+
+        return content;
+    };
 
     useEffect(() => {
         if (report && report.results && bill && bill.testGroups) {
@@ -37,7 +204,9 @@ function ReportDetails() {
                     name: testGroup.name,
                     tests: groupTests,
                     index: index,
-                    totalTests: testGroup.tests.length
+                    totalTests: testGroup.tests.length,
+                    sampleType: testGroup.sampleType,
+                    sampleTestedIn: testGroup.sampleTestedIn
                 };
             });
             
@@ -159,7 +328,9 @@ function ReportDetails() {
                         name: testGroup.name,
                         tests: groupTests,
                         index: index,
-                        totalTests: testGroup.tests.length
+                        totalTests: testGroup.tests.length,
+                        sampleType: testGroup.sampleType,
+                        sampleTestedIn: testGroup.sampleTestedIn
                     };
                 });
                 setGroupedResults(grouped);
@@ -201,6 +372,27 @@ function ReportDetails() {
     const handleSave = async () => {
         setIsSaving(true);
         try {
+            // Set report date automatically if not already set
+            if (!report.reportDate && !reportDate) {
+                try {
+                    const response = await fetch(`/api/reports/bill/${billId}/set-report-date`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const newReportDate = new Date(data.reportDate).toISOString().split('T')[0];
+                        setReportDate(newReportDate);
+                        setOriginalReportDate(newReportDate);
+                    }
+                } catch (error) {
+                    console.error('Error setting report date:', error);
+                }
+            }
+
             // Update results with calculated flags
             const updatedResults = results.map(r => ({
                 test: r.test._id,
@@ -385,11 +577,21 @@ function ReportDetails() {
                                     {groupedResults[activeTestGroupTab]?.tests.length}/{groupedResults[activeTestGroupTab]?.totalTests} tests
                                 </span>
                             </div>
-                            {Object.keys(groupedResults).length > 1 && (
-                                <span className="text-xs text-primary-600">
-                                    {Object.keys(groupedResults).indexOf(activeTestGroupTab) + 1} of {Object.keys(groupedResults).length} groups
-                                </span>
-                            )}
+                            <div className="flex items-center space-x-3">
+                                {Object.keys(groupedResults).length > 1 && (
+                                    <span className="text-xs text-primary-600">
+                                        {Object.keys(groupedResults).indexOf(activeTestGroupTab) + 1} of {Object.keys(groupedResults).length} groups
+                                    </span>
+                                )}
+                                <button
+                                    onClick={handlePrintTestGroup}
+                                    className="btn-secondary flex items-center text-xs"
+                                    title="Print this test group"
+                                >
+                                    <Printer size={14} className="mr-1" />
+                                    Print
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -400,7 +602,7 @@ function ReportDetails() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Result</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Flag</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Normal Range</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Methodology</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Units</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -454,7 +656,7 @@ function ReportDetails() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-gray-600">{res.test.normalRange || 'Not specified'}</td>
-                                        <td className="px-6 py-4 text-gray-600">{res.test.methodology || 'N/A'}</td>
+                                        <td className="px-6 py-4 text-gray-600">{res.test.units || 'N/A'}</td>
                                     </tr>
                                 );
                             });

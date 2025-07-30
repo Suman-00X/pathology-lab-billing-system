@@ -16,7 +16,7 @@ A comprehensive MERN stack application for managing pathology lab operations inc
   - Pricing configuration per group
   - Active/inactive status management
 - **Tests Management**: 
-  - Add individual tests with methodology and normal ranges
+  - Add individual tests with units and normal ranges
   - Associate tests with test groups
   - Sample type and preparation instructions
 - **Doctor Management**: 
@@ -421,7 +421,7 @@ npm run client
 ### 3. Add Tests
 1. Navigate to **Admin > Tests**
 2. Add individual tests for each group:
-   - Test name and methodology
+   - Test name and units
    - Assign to test group
    - Configure normal ranges
    - Set sample type and preparation instructions
@@ -479,7 +479,7 @@ npm run client
 - Associated tests array
 
 ### Test Model
-- Test details (name, methodology, normal ranges)
+- Test details (name, units, normal ranges)
 - Sample type and preparation instructions
 - Associated test group reference
 - Active status management
@@ -500,7 +500,7 @@ npm run client
 
 ### Report Model
 - Associated bill reference (one-to-one relationship)
-- Test results array with methodology and normal ranges
+- Test results array with units and normal ranges
 - **Automatic flag calculation** (Normal/High/Low)
 - Report date management
 - Real-time result validation

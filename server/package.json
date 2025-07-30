@@ -8,7 +8,12 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "check-env": "node scripts/check-env.js",
-    "migrate-payment-mode": "node scripts/migrate-payment-mode.js"
+    "migrate-payment-mode": "node scripts/migrate-payment-mode.js",
+    "migrate-address": "node scripts/migrate-address.js",
+    "migrate-test-group-fields": "node scripts/migrate-test-group-fields.js",
+    "migrate-sample-received-date": "node scripts/migrate-sample-received-date.js",
+    "migrate-referring-customer": "node scripts/migrate-referring-customer.js",
+    "migrate-methodology-to-units": "node scripts/migrate-methodology-to-units.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -26,28 +26,15 @@ const billSchema = new mongoose.Schema({
       required: true
     },
     address: {
-      street: {
-        type: String,
-        required: true
-      },
-      city: {
-        type: String,
-        required: true
-      },
-      state: {
-        type: String,
-        required: true
-      },
-      pincode: {
-        type: String,
-        required: true
-      }
+      type: String,
+      required: true,
+      trim: true
     }
   },
   referredBy: {
     doctorName: {
       type: String,
-      required: true,
+      required: [true, 'Doctor name is required'],
       trim: true
     },
     qualification: {
@@ -56,16 +43,13 @@ const billSchema = new mongoose.Schema({
     },
     phone: {
       type: String,
-      validate: {
-        validator: function(v) {
-          // Allow empty/null phone numbers (optional field)
-          if (!v) return true;
-          // Validate 10-digit phone number
-          return /^[0-9]{10}$/.test(v);
-        },
-        message: 'Phone number must be exactly 10 digits'
-      }
+      required: [true, 'Doctor phone is required'],
+      trim: true
     }
+  },
+  referringCustomer: {
+    type: String,
+    trim: true
   },
   testGroups: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -146,6 +130,10 @@ const billSchema = new mongoose.Schema({
     default: Date.now
   },
   sampleCollectionDate: {
+    type: Date,
+    default: Date.now
+  },
+  sampleReceivedDate: {
     type: Date,
     default: Date.now
   },

@@ -11,6 +11,16 @@ const testGroupSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'Price is required']
   },
+  sampleType: {
+    type: String,
+    required: [true, 'Sample type is required'],
+    trim: true
+  },
+  sampleTestedIn: {
+    type: String,
+    required: [true, 'Sample tested in is required'],
+    trim: true
+  },
   tests: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Test'

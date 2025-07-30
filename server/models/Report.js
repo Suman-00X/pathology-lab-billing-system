@@ -10,7 +10,7 @@ const reportResultSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  methodology: {
+  units: {
     type: String
   },
   normalRange: {

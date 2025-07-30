@@ -6,12 +6,12 @@ export const testGroupController = {
   // Create a new test group
   async createTestGroup(req, res) {
     try {
-      const { name, price } = req.body;
-      if (!name || !price) {
-        return res.status(400).json({ message: 'Name and price are required.' });
+      const { name, price, sampleType, sampleTestedIn } = req.body;
+      if (!name || !price || !sampleType || !sampleTestedIn) {
+        return res.status(400).json({ message: 'Name, price, sample type, and sample tested in are required.' });
       }
 
-      const newTestGroup = new TestGroup({ name, price });
+      const newTestGroup = new TestGroup({ name, price, sampleType, sampleTestedIn });
       await newTestGroup.save();
       res.status(201).json(newTestGroup);
     } catch (error) {
@@ -69,10 +69,10 @@ export const testGroupController = {
   // Update a test group
   async updateTestGroup(req, res) {
     try {
-      const { name, price, isActive } = req.body;
+      const { name, price, isActive, sampleType, sampleTestedIn } = req.body;
       const updatedTestGroup = await TestGroup.findByIdAndUpdate(
         req.params.id,
-        { name, price, isActive },
+        { name, price, isActive, sampleType, sampleTestedIn },
         { new: true, runValidators: true }
       );
       if (!updatedTestGroup) {
@@ -110,12 +110,12 @@ export const testGroupController = {
   async addTestToGroup(req, res) {
     try {
       const { groupId } = req.params;
-      const { name, methodology, normalRange } = req.body;
+      const { name, units, normalRange } = req.body;
 
-  
+      console.log('Adding test to group:', { groupId, name, units, normalRange });
 
-      if (!name || !normalRange) {
-        return res.status(400).json({ message: 'Test name and normal range are required.' });
+      if (!name || !normalRange || !units) {
+        return res.status(400).json({ message: 'Test name, normal range, and units are required.' });
       }
 
       const testGroup = await TestGroup.findById(groupId);
@@ -123,17 +123,20 @@ export const testGroupController = {
         return res.status(404).json({ message: 'Test group not found' });
       }
 
-  
+      console.log('Found test group:', testGroup.name);
 
-      const newTest = new Test({ name, methodology, normalRange, testGroup: groupId });
+      const newTest = new Test({ name, units, normalRange, testGroup: groupId });
   
+      console.log('Created new test:', newTest);
       
       await newTest.save();
   
+      console.log('Saved test to database');
 
       testGroup.tests.push(newTest._id);
       await testGroup.save();
   
+      console.log('Updated test group with new test');
       
       // Use a fresh query to get the updated group with populated tests
       const updatedGroup = await TestGroup.findById(groupId).populate('tests');
@@ -145,10 +148,11 @@ export const testGroupController = {
       }
       delete groupObj.description;
       
+      console.log('Returning updated group');
   
       res.status(201).json(groupObj);
     } catch (error) {
-  
+      console.error('Error adding test to group:', error);
       res.status(500).json({ 
         message: 'Error adding test to group', 
         error: error.message,
@@ -186,11 +190,11 @@ export const testGroupController = {
   async updateTestInGroup(req, res) {
     try {
       const { testId } = req.params;
-      const { name, methodology, normalRange } = req.body;
+      const { name, units, normalRange } = req.body;
 
       const updatedTest = await Test.findByIdAndUpdate(
         testId,
-        { name, methodology, normalRange },
+        { name, units, normalRange },
         { new: true, runValidators: true }
       );
 

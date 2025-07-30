@@ -102,7 +102,7 @@ function BillDetails() {
                 <div class="patient-info">
                     <div class="section-title">Patient Information</div>
                     <div class="row"><span class="label">Patient Details:</span> <span>${bill.patient.name} | Age: ${bill.patient.age} years | Gender: ${bill.patient.gender}</span></div>
-                    <div class="row"><span class="label">Contact Details:</span> <span>Phone: ${bill.patient.phone} | Address: ${bill.patient.address.street}, ${bill.patient.address.city}, ${bill.patient.address.state} - ${bill.patient.address.pincode}</span></div>
+                    <div class="row"><span class="label">Contact Details:</span> <span>Phone: ${bill.patient.phone} | Address: ${bill.patient.address}</span></div>
                     <div class="row"><span class="label">Referred Doctor:</span> <span>${bill.referredBy.doctorName}${bill.referredBy.qualification ? ` (${bill.referredBy.qualification})` : ''}</span></div>
                 </div>
             </div>
@@ -186,12 +186,13 @@ function BillDetails() {
                         <InfoRow label="Age" value={`${bill.patient.age} years`} />
                         <InfoRow label="Gender" value={bill.patient.gender} />
                         <InfoRow label="Phone" value={bill.patient.phone} />
-                        <InfoRow label="Address" value={`${bill.patient.address.street}, ${bill.patient.address.city}, ${bill.patient.address.state} - ${bill.patient.address.pincode}`} />
+                        <InfoRow label="Address" value={bill.patient.address} />
                     </InfoCard>
                     <InfoCard title="Referring Doctor">
                         <InfoRow label="Name" value={bill.referredBy.doctorName} />
                         <InfoRow label="Qualification" value={bill.referredBy.qualification || 'N/A'} />
                         <InfoRow label="Phone" value={bill.referredBy.phone || 'N/A'} />
+                        {bill.referringCustomer && <InfoRow label="Referring Customer" value={bill.referringCustomer} />}
                     </InfoCard>
                 </div>
 
@@ -223,6 +224,7 @@ function BillDetails() {
                     <InfoCard title="Dates">
                         <InfoRow label="Bill Date" value={new Date(bill.billDate).toLocaleDateString()} />
                         <InfoRow label="Sample Collection" value={new Date(bill.sampleCollectionDate).toLocaleDateString()} />
+                        <InfoRow label="Sample Received" value={new Date(bill.sampleReceivedDate).toLocaleDateString()} />
                         <InfoRow label="Report Date" value={bill.reportDate ? new Date(bill.reportDate).toLocaleDateString() : 'Pending'} />
                     </InfoCard>
                 </div>
