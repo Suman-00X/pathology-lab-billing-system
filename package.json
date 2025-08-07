@@ -15,7 +15,16 @@
   "devDependencies": {
     "concurrently": "^8.2.2"
   },
-  "keywords": ["pathology", "billing", "mern", "lab"],
+  "keywords": [
+    "pathology",
+    "billing",
+    "mern",
+    "lab"
+  ],
   "author": "Pathology Lab",
-  "license": "MIT"
-} 
+  "license": "MIT",
+  "dependencies": {
+    "jsbarcode": "^3.12.1",
+    "qrcode": "^1.5.4"
+  }
+}

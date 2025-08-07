@@ -11,6 +11,7 @@ export const getSettings = async (req, res) => {
         taxPercentage: 0,
         taxEnabled: true,
         paymentModeEnabled: true,
+        printHeaderEnabled: true,
         currency: 'INR',
         currencySymbol: '₹'
       });
@@ -27,7 +28,7 @@ export const getSettings = async (req, res) => {
 // Update settings
 export const updateSettings = async (req, res) => {
   try {
-    const { taxPercentage, taxEnabled, paymentModeEnabled, currency, currencySymbol } = req.body;
+    const { taxPercentage, taxEnabled, paymentModeEnabled, printHeaderEnabled, currency, currencySymbol } = req.body;
     
     // Validate tax percentage
     if (taxPercentage !== undefined) {
@@ -44,6 +45,7 @@ export const updateSettings = async (req, res) => {
         taxPercentage: taxPercentage || 0,
         taxEnabled: taxEnabled !== undefined ? taxEnabled : true,
         paymentModeEnabled: paymentModeEnabled !== undefined ? paymentModeEnabled : true,
+        printHeaderEnabled: printHeaderEnabled !== undefined ? printHeaderEnabled : true,
         currency: currency || 'INR',
         currencySymbol: currencySymbol || '₹'
       });
@@ -52,6 +54,7 @@ export const updateSettings = async (req, res) => {
       if (taxPercentage !== undefined) settings.taxPercentage = taxPercentage;
       if (taxEnabled !== undefined) settings.taxEnabled = taxEnabled;
       if (paymentModeEnabled !== undefined) settings.paymentModeEnabled = paymentModeEnabled;
+      if (printHeaderEnabled !== undefined) settings.printHeaderEnabled = printHeaderEnabled;
       if (currency !== undefined) settings.currency = currency;
       if (currencySymbol !== undefined) settings.currencySymbol = currencySymbol;
     }

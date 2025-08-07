@@ -18,6 +18,11 @@ const settingsSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Print header enable/disable setting for reports
+  printHeaderEnabled: {
+    type: Boolean,
+    default: true
+  },
   // Can add more settings in the future
   currency: {
     type: String,

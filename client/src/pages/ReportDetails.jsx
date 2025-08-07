@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useReport, useBill, useLab } from '../hooks/useApiHooks';
-import { FileHeart, Save, Edit, X, Printer } from 'lucide-react';
+import { useReport, useBill, useLab, useSettings } from '../hooks/useApiHooks';
+import { FileHeart, Save, Edit, X, Printer, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
+import QRCode from 'qrcode';
 
 function ReportDetails() {
     const { billId } = useParams();
     const { report, loading: loadingReport, error, updateReport } = useReport(billId);
     const { bill, loading: loadingBill } = useBill(billId);
     const { lab } = useLab();
+    const { settings } = useSettings();
     const [results, setResults] = useState([]);
     const [reportDate, setReportDate] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -17,9 +19,120 @@ function ReportDetails() {
     const [originalReportDate, setOriginalReportDate] = useState('');
     const [activeTestGroupTab, setActiveTestGroupTab] = useState(0);
     const [groupedResults, setGroupedResults] = useState({});
+    const [printDropdownOpen, setPrintDropdownOpen] = useState(false);
+
+    // Close print dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (printDropdownOpen && !event.target.closest('.relative')) {
+                setPrintDropdownOpen(false);
+            }
+        };
+
+        if (printDropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [printDropdownOpen]);
+
+    // Generate report information for QR code
+    const generateReportInfoForQRCode = () => {
+        if (!report || !bill || !results.length) return '';
+        
+        // Get all test results with their details (optimized for QR code size)
+        const testResults = results.map(result => ({
+            n: result.test.name, // testName
+            r: result.result || '', // result
+            f: result.flag || '', // flag
+            nr: result.test.normalRange || '', // normalRange
+            u: result.test.units || '', // units
+            g: bill.testGroups.find(group => 
+                group.tests.some(test => test._id === result.testId)
+            )?.name || '' // testGroup
+        }));
+        
+        const reportInfo = {
+            rid: report._id, // reportId
+            bn: bill.billNumber, // billNumber
+            pn: bill.patient.name, // patientName
+            pa: bill.patient.age, // patientAge
+            pg: bill.patient.gender, // patientGender
+            dn: bill.referredBy.doctorName, // doctorName
+            dq: bill.referredBy.qualification, // doctorQualification
+            scd: new Date(bill.sampleCollectionDate).toISOString().split('T')[0], // sampleCollectionDate
+            srd: new Date(bill.sampleReceivedDate).toISOString().split('T')[0], // sampleReceivedDate
+            rd: report.reportDate ? new Date(report.reportDate).toISOString().split('T')[0] : '', // reportDate
+            tg: bill.testGroups.length, // totalTestGroups
+            tt: results.length, // totalTests
+            ln: lab?.name || 'Pathology Lab', // labName
+            tr: testResults // testResults
+        };
+        
+        const fullData = JSON.stringify(reportInfo);
+        
+        // If data is too large, create a simplified version
+        if (fullData.length > 1500) {
+            console.log('Data too large, creating simplified QR code');
+            const simplifiedInfo = {
+                rid: report._id,
+                bn: bill.billNumber,
+                pn: bill.patient.name,
+                pa: bill.patient.age,
+                pg: bill.patient.gender,
+                dn: bill.referredBy.doctorName,
+                rd: report.reportDate ? new Date(report.reportDate).toISOString().split('T')[0] : '',
+                tt: results.length,
+                ln: lab?.name || 'Pathology Lab',
+                // Include only abnormal results to save space
+                tr: testResults.filter(result => result.f !== 'Normal' && result.f !== '')
+            };
+            return JSON.stringify(simplifiedInfo);
+        }
+        
+        return fullData;
+    };
+
+    // Generate QR code
+    const generateQRCode = async (data) => {
+        try {
+            console.log('Generating QR code with data length:', data.length);
+            console.log('QR data preview:', data.substring(0, 100) + '...');
+            
+            if (!data || data.length === 0) {
+                console.error('No data provided for QR code generation');
+                return null;
+            }
+            
+            // Check if data is too large (QR codes have size limits)
+            if (data.length > 2000) {
+                console.warn('QR code data is large, truncating...');
+                data = data.substring(0, 2000);
+            }
+            
+            const qrDataURL = await QRCode.toDataURL(data, {
+                width: 120,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                },
+                errorCorrectionLevel: 'M' // Medium error correction
+            });
+            
+            console.log('QR code generated successfully');
+            return qrDataURL;
+        } catch (error) {
+            console.error('Error generating QR code:', error);
+            console.error('Error details:', error.message);
+            return null;
+        }
+    };
 
     // Print functionality
-    const handlePrintTestGroup = async () => {
+    const handlePrintTestGroup = async (includeHeader = null) => {
         // Set report date automatically if not already set
         if (!report.reportDate) {
             try {
@@ -44,8 +157,28 @@ function ReportDetails() {
         const activeGroup = groupedResults[activeTestGroupTab];
         if (!activeGroup) return;
         
+        // Generate QR code data
+        const qrData = generateReportInfoForQRCode();
+        console.log('QR data generated:', qrData ? 'Yes' : 'No');
+        
+        if (!qrData) {
+            toast.error('No report data available for QR code');
+            return;
+        }
+        
+        const qrCodeImage = await generateQRCode(qrData);
+        console.log('QR code image generated:', qrCodeImage ? 'Yes' : 'No');
+        
+        if (!qrCodeImage) {
+            toast.error('Failed to generate QR code');
+            return;
+        }
+        
+        // Determine whether to include header based on parameter or settings
+        const shouldIncludeHeader = includeHeader !== null ? includeHeader : (settings?.printHeaderEnabled !== false);
+        
         const printWindow = window.open('', '_blank');
-        const printContent = generateTestGroupPrintContent(activeGroup);
+        const printContent = generateTestGroupPrintContent(activeGroup, qrCodeImage, shouldIncludeHeader);
         
         printWindow.document.write(`
             <!DOCTYPE html>
@@ -93,7 +226,7 @@ function ReportDetails() {
         }, 100);
     };
 
-    const generateTestGroupPrintContent = (activeGroup) => {
+    const generateTestGroupPrintContent = (activeGroup, qrCodeImage, includeHeader = true) => {
         const apiBaseUrl = import.meta.env.DEV 
           ? 'http://localhost:5000' 
           : 'https://pathology-lab-billing-system.onrender.com';
@@ -103,24 +236,47 @@ function ReportDetails() {
         const totalPages = Math.ceil(activeGroup.tests.length / testsPerPage);
         
         let content = `
-            <div class="header">
-                <div class="lab-info" style="margin-bottom: 10px; text-align: right;">
+            ${includeHeader ? `
+                <div class="header">
+                    <div class="lab-info" style="margin-bottom: 10px; text-align: right;">
+                        <strong>Bill Number:</strong> ${bill.billNumber}
+                    </div>
+                    ${lab?.logo ? `<img src="${apiBaseUrl}${lab.logo}" alt="Lab Logo" class="logo">` : ''}
+                    <div class="lab-name">${lab?.name || 'Pathology Lab'}</div>
+                    <div class="lab-info">
+                        ${lab?.address ? `${lab.address.street}, ${lab.address.city}, ${lab.address.state} - ${lab.address.pincode}` : ''} | 
+                        ${lab?.contactInfo?.phone ? `Phone: ${lab.contactInfo.phone}` : ''}
+                        ${lab?.contactInfo?.email ? ` | Email: ${lab.contactInfo.email}` : ''}
+                    </div>
+                </div>
+            ` : `
+                <div style="height: 120px; margin-bottom: 30px;">
+                    <!-- Empty space for pre-printed header -->
+                </div>
+                <div style="text-align: right; margin-bottom: 20px; padding: 10px; border-bottom: 1px solid #ccc;">
                     <strong>Bill Number:</strong> ${bill.billNumber}
                 </div>
-                ${lab?.logo ? `<img src="${apiBaseUrl}${lab.logo}" alt="Lab Logo" class="logo">` : ''}
-                <div class="lab-name">${lab?.name || 'Pathology Lab'}</div>
-                <div class="lab-info">
-                    ${lab?.address ? `${lab.address.street}, ${lab.address.city}, ${lab.address.state} - ${lab.address.pincode}` : ''} | 
-                    ${lab?.contactInfo?.phone ? `Phone: ${lab.contactInfo.phone}` : ''}
-                    ${lab?.contactInfo?.email ? ` | Email: ${lab.contactInfo.email}` : ''}
-                </div>
-            </div>
+            `}
 
-            <div class="patient-info">
-                <div class="row"><span class="label">Patient Details:</span> <span>${bill.patient.name} | Age: ${bill.patient.age} years | Gender: ${bill.patient.gender}</span></div>
-                <div class="row"><span class="label">Referred Doctor:</span> <span>${bill.referredBy.doctorName}${bill.referredBy.qualification ? ` (${bill.referredBy.qualification})` : ''}</span></div>
-                ${bill.referringCustomer ? `<div class="row"><span class="label">Referring Customer:</span> <span>${bill.referringCustomer}</span></div>` : ''}
-                <div class="row"><span class="label">Dates:</span> <span>Sample Collection: ${new Date(bill.sampleCollectionDate).toLocaleDateString()} | Sample Received: ${new Date(bill.sampleReceivedDate).toLocaleDateString()} | Report: ${report.reportDate ? new Date(report.reportDate).toLocaleDateString() : 'Pending'}</span></div>
+            <div class="patient-info-container" style="display: flex; gap: 20px; margin: 20px 0;">
+                <div class="patient-info-box" style="flex: 1; border: 2px solid #333; padding: 15px; border-radius: 8px; background-color: #f9f9f9;">
+                    <div class="row"><span class="label">Patient Details:</span> <span>${bill.patient.name} | Age: ${bill.patient.age} years | Gender: ${bill.patient.gender}</span></div>
+                    <div class="row"><span class="label">Referred Doctor:</span> <span>${bill.referredBy.doctorName}${bill.referredBy.qualification ? ` (${bill.referredBy.qualification})` : ''}</span></div>
+                    ${bill.referringCustomer ? `<div class="row"><span class="label">Referring Customer:</span> <span>${bill.referringCustomer}</span></div>` : ''}
+                    <div class="row"><span class="label">Dates:</span> <span>Sample Collection: ${new Date(bill.sampleCollectionDate).toLocaleDateString()} | Sample Received: ${new Date(bill.sampleReceivedDate).toLocaleDateString()} | Report: ${report.reportDate ? new Date(report.reportDate).toLocaleDateString() : 'Pending'}</span></div>
+                </div>
+                <div class="qr-code-space" style="flex: 0 0 150px; border: 2px solid #333; padding: 15px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background-color: #ffffff;">
+                    <div style="text-align: center;">
+                        ${qrCodeImage ? `
+                            <img src="${qrCodeImage}" alt="Report QR Code" style="max-width: 100%; height: auto; margin-bottom: 5px;" />
+                        ` : `
+                            <div style="width: 120px; height: 120px; background-color: #f0f0f0; display: flex; align-items: center; justify-content: center; margin-bottom: 5px;">
+                                <div style="color: #666; font-size: 12px;">QR Code</div>
+                            </div>
+                        `}
+                        <div style="font-size: 8px; color: #333; margin-top: 5px;">Report ID: ${report._id.slice(-8)}</div>
+                    </div>
+                </div>
             </div>
         `;
 
@@ -583,14 +739,43 @@ function ReportDetails() {
                                         {Object.keys(groupedResults).indexOf(activeTestGroupTab) + 1} of {Object.keys(groupedResults).length} groups
                                     </span>
                                 )}
-                                <button
-                                    onClick={handlePrintTestGroup}
-                                    className="btn-secondary flex items-center text-xs"
-                                    title="Print this test group"
-                                >
-                                    <Printer size={14} className="mr-1" />
-                                    Print
-                                </button>
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setPrintDropdownOpen(!printDropdownOpen)}
+                                        className="btn-secondary flex items-center text-xs"
+                                        title="Print options"
+                                    >
+                                        <Printer size={14} className="mr-1" />
+                                        Print
+                                        <ChevronDown size={12} className="ml-1" />
+                                    </button>
+                                    {printDropdownOpen && (
+                                        <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 rounded-lg shadow-lg z-50">
+                                            <div className="py-1">
+                                                <button
+                                                    onClick={() => {
+                                                        handlePrintTestGroup(true);
+                                                        setPrintDropdownOpen(false);
+                                                    }}
+                                                    className="flex items-center w-full px-4 py-2 text-xs text-gray-700 hover:bg-gray-100"
+                                                >
+                                                    <Printer size={12} className="mr-2" />
+                                                    Print with Header
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        handlePrintTestGroup(false);
+                                                        setPrintDropdownOpen(false);
+                                                    }}
+                                                    className="flex items-center w-full px-4 py-2 text-xs text-gray-700 hover:bg-gray-100"
+                                                >
+                                                    <Printer size={12} className="mr-2" />
+                                                    Print without Header
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>

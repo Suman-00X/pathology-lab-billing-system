@@ -22,6 +22,7 @@ function LabSettings() {
   const [taxPercentage, setTaxPercentage] = useState(0);
   const [taxEnabled, setTaxEnabled] = useState(true);
   const [paymentModeEnabled, setPaymentModeEnabled] = useState(true);
+  const [printHeaderEnabled, setPrintHeaderEnabled] = useState(true);
 
 
 
@@ -63,6 +64,7 @@ function LabSettings() {
       // If no payment modes exist, force disable payment mode
       const shouldEnablePaymentMode = settings.paymentModeEnabled !== false && paymentModes.length > 0;
       setPaymentModeEnabled(shouldEnablePaymentMode);
+      setPrintHeaderEnabled(settings.printHeaderEnabled !== false);
     }
   }, [settings, paymentModes.length]);
 
@@ -149,16 +151,18 @@ function LabSettings() {
     }
   };
 
-  // Tax settings handler
-  const handleTaxUpdate = async () => {
+  // Settings handler
+  const handleSettingsUpdate = async () => {
     try {
       await updateSettings({ 
         taxPercentage: parseFloat(taxPercentage) || 0,
         taxEnabled,
-        paymentModeEnabled
+        paymentModeEnabled,
+        printHeaderEnabled
       });
+      toast.success('Settings updated successfully!');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update tax settings');
+      toast.error(error.response?.data?.message || 'Failed to update settings');
     }
   };
 
@@ -361,10 +365,29 @@ function LabSettings() {
             </div>
           </div>
 
+          {/* Print Header Settings */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="text-md font-medium text-gray-900">Print Header Settings</h4>
+                <p className="text-sm text-gray-500">Enable or disable header (lab logo and info) in printed reports</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={printHeaderEnabled}
+                  onChange={(e) => setPrintHeaderEnabled(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+              </label>
+            </div>
+          </div>
+
           {/* Save Button */}
           <div className="flex justify-end pt-4 border-t">
             <button
-              onClick={handleTaxUpdate}
+              onClick={handleSettingsUpdate}
               disabled={settingsLoading}
               className="btn-primary"
             >

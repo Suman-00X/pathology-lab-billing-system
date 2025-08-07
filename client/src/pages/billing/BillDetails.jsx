@@ -2,6 +2,7 @@ import React from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useBill, useLab } from '../../hooks/useApiHooks';
 import { FileText, User, Stethoscope, Calendar, IndianRupee, Printer, Edit, Trash2, FileHeart } from 'lucide-react';
+import QRCode from 'qrcode';
 
 const InfoCard = ({ title, children, className }) => (
     <div className={`bg-white shadow-md rounded-lg p-6 ${className}`}>
@@ -23,13 +24,61 @@ function BillDetails() {
     const { lab } = useLab();
     const navigate = useNavigate();
 
+    // Generate bill information for QR code
+    const generateBillInfoForQRCode = () => {
+        if (!bill) return '';
+        
+        const billInfo = {
+            billId: bill._id,
+            billNumber: bill.billNumber,
+            patientName: bill.patient.name,
+            patientAge: bill.patient.age,
+            patientGender: bill.patient.gender,
+            patientPhone: bill.patient.phone,
+            doctorName: bill.referredBy.doctorName,
+            doctorQualification: bill.referredBy.qualification,
+            billDate: new Date(bill.billDate).toISOString().split('T')[0],
+            sampleCollectionDate: new Date(bill.sampleCollectionDate).toISOString().split('T')[0],
+            sampleReceivedDate: new Date(bill.sampleReceivedDate).toISOString().split('T')[0],
+            totalAmount: bill.totalAmount,
+            finalAmount: bill.finalAmount,
+            paymentStatus: bill.paymentStatus,
+            totalTestGroups: bill.testGroups.length,
+            labName: lab?.name || 'Pathology Lab'
+        };
+        
+        return JSON.stringify(billInfo);
+    };
+
+    // Generate QR code
+    const generateQRCode = async (data) => {
+        try {
+            const qrDataURL = await QRCode.toDataURL(data, {
+                width: 120,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            });
+            return qrDataURL;
+        } catch (error) {
+            console.error('Error generating QR code:', error);
+            return null;
+        }
+    };
+
     if (loading) return <div className="text-center py-10">Loading Bill Details...</div>;
     if (error) return <div className="text-red-500 text-center py-10">Error: {error.message}</div>;
     if (!bill) return <div className="text-center py-10">Bill not found.</div>;
 
-    const handlePrint = () => {
+    const handlePrint = async () => {
+        // Generate QR code data
+        const qrData = generateBillInfoForQRCode();
+        const qrCodeImage = await generateQRCode(qrData);
+        
         const printWindow = window.open('', '_blank');
-        const printContent = generatePrintContent();
+        const printContent = generatePrintContent(qrCodeImage);
         
         printWindow.document.write(`
             <!DOCTYPE html>
@@ -78,7 +127,7 @@ function BillDetails() {
         printWindow.close();
     };
 
-    const generatePrintContent = () => {
+    const generatePrintContent = (qrCodeImage) => {
         const apiBaseUrl = import.meta.env.DEV 
           ? 'http://localhost:5000' 
           : 'https://pathology-lab-billing-system.onrender.com';
@@ -98,12 +147,24 @@ function BillDetails() {
                 </div>
             </div>
 
-            <div class="bill-info">
-                <div class="patient-info">
+            <div class="bill-info" style="display: flex; gap: 20px; margin-bottom: 30px;">
+                <div class="patient-info" style="flex: 1; border: 2px solid #333; padding: 15px; border-radius: 8px; background-color: #f9f9f9;">
                     <div class="section-title">Patient Information</div>
                     <div class="row"><span class="label">Patient Details:</span> <span>${bill.patient.name} | Age: ${bill.patient.age} years | Gender: ${bill.patient.gender}</span></div>
                     <div class="row"><span class="label">Contact Details:</span> <span>Phone: ${bill.patient.phone} | Address: ${bill.patient.address}</span></div>
                     <div class="row"><span class="label">Referred Doctor:</span> <span>${bill.referredBy.doctorName}${bill.referredBy.qualification ? ` (${bill.referredBy.qualification})` : ''}</span></div>
+                </div>
+                <div class="qr-code-space" style="flex: 0 0 150px; border: 2px solid #333; padding: 15px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background-color: #ffffff;">
+                    <div style="text-align: center;">
+                        ${qrCodeImage ? `
+                            <img src="${qrCodeImage}" alt="Bill QR Code" style="max-width: 100%; height: auto; margin-bottom: 5px;" />
+                        ` : `
+                            <div style="width: 120px; height: 120px; background-color: #f0f0f0; display: flex; align-items: center; justify-content: center; margin-bottom: 5px;">
+                                <div style="color: #666; font-size: 12px;">QR Code</div>
+                            </div>
+                        `}
+                        <div style="font-size: 8px; color: #333; margin-top: 5px;">Bill ID: ${bill._id.slice(-8)}</div>
+                    </div>
                 </div>
             </div>
 
