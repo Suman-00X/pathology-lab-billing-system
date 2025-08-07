@@ -100,11 +100,21 @@ const TestGroupRow = ({ group, onEdit, onDelete, onAddTest, onUpdateTest, onRemo
                 <td className="px-6 py-4 whitespace-nowrap text-gray-700">{group.sampleTestedIn || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-700">{group.tests.length}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        group.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                        {group.isActive ? 'Active' : 'Inactive'}
-                    </span>
+                    <div className="flex items-center space-x-1">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            group.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                            {group.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        {group.isChecklistEnabled && (
+                            <span 
+                                className="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-blue-800 bg-blue-100 rounded-full border border-blue-200"
+                                title="Checklist Enabled - Individual test selection available"
+                            >
+                                C
+                            </span>
+                        )}
+                    </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                     <button onClick={() => onEdit(group)} className="text-primary-600 hover:text-primary-900"><Edit size={18} /></button>
@@ -159,7 +169,8 @@ const TestGroupModal = ({ group, isOpen, onClose, onSave, loading = false }) => 
       price: '', 
       sampleType: '', 
       sampleTestedIn: '', 
-      isActive: true 
+      isActive: true,
+      isChecklistEnabled: false 
     });
   
     useEffect(() => {
@@ -169,7 +180,8 @@ const TestGroupModal = ({ group, isOpen, onClose, onSave, loading = false }) => 
           price: group.price || '', 
           sampleType: group.sampleType || '', 
           sampleTestedIn: group.sampleTestedIn || '', 
-          isActive: group.isActive 
+          isActive: group.isActive,
+          isChecklistEnabled: group.isChecklistEnabled || false 
         });
       } else {
         setFormData({ 
@@ -177,7 +189,8 @@ const TestGroupModal = ({ group, isOpen, onClose, onSave, loading = false }) => 
           price: '', 
           sampleType: '', 
           sampleTestedIn: '', 
-          isActive: true 
+          isActive: true,
+          isChecklistEnabled: false 
         });
       }
     }, [group]);
@@ -239,6 +252,25 @@ const TestGroupModal = ({ group, isOpen, onClose, onSave, loading = false }) => 
                 />
                 <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">Active</label>
             </div>
+            <div className="flex items-center">
+                <input
+                    type="checkbox"
+                    id="isChecklistEnabled"
+                    checked={formData.isChecklistEnabled}
+                    onChange={(e) => setFormData({ ...formData, isChecklistEnabled: e.target.checked })}
+                    className="h-4 w-4 text-primary-600 border-gray-300 rounded"
+                />
+                <label htmlFor="isChecklistEnabled" className="ml-2 block text-sm text-gray-900">
+                    Enable Test Selection (Checklist)
+                </label>
+            </div>
+            {formData.isChecklistEnabled && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <p className="text-sm text-blue-800">
+                        <strong>Note:</strong> When checklist is enabled, users can select individual tests from this group during bill creation and customize prices for each test.
+                    </p>
+                </div>
+            )}
             <div className="flex justify-end space-x-3">
               <button type="button" onClick={onClose} className="btn-secondary" disabled={loading}>
                 Cancel

@@ -250,7 +250,7 @@ function ReportDetails() {
                     </div>
                 </div>
             ` : `
-                <div style="height: 120px; margin-bottom: 30px;">
+                <div style="height: 63px; margin-bottom: 30px;">
                     <!-- Empty space for pre-printed header -->
                 </div>
                 <div style="text-align: right; margin-bottom: 20px; padding: 10px; border-bottom: 1px solid #ccc;">
@@ -258,23 +258,40 @@ function ReportDetails() {
                 </div>
             `}
 
-            <div class="patient-info-container" style="display: flex; gap: 20px; margin: 20px 0;">
-                <div class="patient-info-box" style="flex: 1; border: 2px solid #333; padding: 15px; border-radius: 8px; background-color: #f9f9f9;">
-                    <div class="row"><span class="label">Patient Details:</span> <span>${bill.patient.name} | Age: ${bill.patient.age} years | Gender: ${bill.patient.gender}</span></div>
-                    <div class="row"><span class="label">Referred Doctor:</span> <span>${bill.referredBy.doctorName}${bill.referredBy.qualification ? ` (${bill.referredBy.qualification})` : ''}</span></div>
-                    ${bill.referringCustomer ? `<div class="row"><span class="label">Referring Customer:</span> <span>${bill.referringCustomer}</span></div>` : ''}
-                    <div class="row"><span class="label">Dates:</span> <span>Sample Collection: ${new Date(bill.sampleCollectionDate).toLocaleDateString()} | Sample Received: ${new Date(bill.sampleReceivedDate).toLocaleDateString()} | Report: ${report.reportDate ? new Date(report.reportDate).toLocaleDateString() : 'Pending'}</span></div>
-                </div>
-                <div class="qr-code-space" style="flex: 0 0 150px; border: 2px solid #333; padding: 15px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background-color: #ffffff;">
-                    <div style="text-align: center;">
-                        ${qrCodeImage ? `
-                            <img src="${qrCodeImage}" alt="Report QR Code" style="max-width: 100%; height: auto; margin-bottom: 5px;" />
-                        ` : `
-                            <div style="width: 120px; height: 120px; background-color: #f0f0f0; display: flex; align-items: center; justify-content: center; margin-bottom: 5px;">
-                                <div style="color: #666; font-size: 12px;">QR Code</div>
-                            </div>
-                        `}
-                        <div style="font-size: 8px; color: #333; margin-top: 5px;">Report ID: ${report._id.slice(-8)}</div>
+            <div class="patient-info-container" style="margin: 20px 0;">
+                <div class="patient-info-box" style="border: 2px solid #333; padding: 20px; border-radius: 8px; background-color: #f9f9f9;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <div style="font-weight: bold; color: #333; margin-bottom: 8px; font-size: 14px; border-bottom: 1px solid #ccc; padding-bottom: 4px;">Patient Information</div>
+                            <div style="margin-bottom: 5px;"><span style="font-weight: 600; color: #555;">Name:</span> <span style="color: #333;">${bill.patient.name}</span></div>
+                            <div style="margin-bottom: 5px;"><span style="font-weight: 600; color: #555;">Age/Gender:</span> <span style="color: #333;">${bill.patient.age} years, ${bill.patient.gender}</span></div>
+                            <div style="margin-bottom: 5px;"><span style="font-weight: 600; color: #555;">Phone:</span> <span style="color: #333;">${bill.patient.phone || 'N/A'}</span></div>
+                        </div>
+                        <div>
+                            <div style="font-weight: bold; color: #333; margin-bottom: 8px; font-size: 14px; border-bottom: 1px solid #ccc; padding-bottom: 4px;">Referring Doctor</div>
+                            <div style="margin-bottom: 5px;"><span style="font-weight: 600; color: #555;">Name:</span> <span style="color: #333;">${bill.referredBy.doctorName}</span></div>
+                            ${bill.referredBy.qualification ? `<div style="margin-bottom: 5px;"><span style="font-weight: 600; color: #555;">Qualification:</span> <span style="color: #333;">${bill.referredBy.qualification}</span></div>` : ''}
+                            ${bill.referredBy.phone ? `<div style="margin-bottom: 5px;"><span style="font-weight: 600; color: #555;">Phone:</span> <span style="color: #333;">${bill.referredBy.phone}</span></div>` : ''}
+                        </div>
+                    </div>
+                    ${bill.referringCustomer ? `
+                        <div style="margin-bottom: 15px; padding-top: 10px; border-top: 1px solid #ddd;">
+                            <span style="font-weight: 600; color: #555;">Referring Customer:</span> <span style="color: #333;">${bill.referringCustomer}</span>
+                        </div>
+                    ` : ''}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; padding-top: 10px; border-top: 1px solid #ddd;">
+                        <div>
+                            <span style="font-weight: 600; color: #555; display: block; margin-bottom: 3px;">Sample Collection:</span>
+                            <span style="color: #333; font-size: 13px;">${new Date(bill.sampleCollectionDate).toLocaleDateString()}</span>
+                        </div>
+                        <div>
+                            <span style="font-weight: 600; color: #555; display: block; margin-bottom: 3px;">Sample Received:</span>
+                            <span style="color: #333; font-size: 13px;">${new Date(bill.sampleReceivedDate).toLocaleDateString()}</span>
+                        </div>
+                        <div>
+                            <span style="font-weight: 600; color: #555; display: block; margin-bottom: 3px;">Report Date:</span>
+                            <span style="color: #333; font-size: 13px;">${report.reportDate ? new Date(report.reportDate).toLocaleDateString() : 'Pending'}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -352,17 +369,34 @@ function ReportDetails() {
             // Group results by test groups
             const grouped = {};
             bill.testGroups.forEach((testGroup, index) => {
-                const groupTests = mappedResults.filter(result => 
-                    testGroup.tests.some(test => test._id === result.testId)
+                // Check if this test group has custom selections
+                const customSelection = bill.customSelections?.find(cs => 
+                    (cs.testGroupId._id || cs.testGroupId) === testGroup._id
                 );
+                
+                let relevantTests;
+                if (customSelection && customSelection.selectedTests.length > 0) {
+                    // If there are custom selections, only show results for selected tests
+                    const selectedTestIds = customSelection.selectedTests.map(st => st.test._id || st.test);
+                    relevantTests = mappedResults.filter(result => 
+                        selectedTestIds.includes(result.testId)
+                    );
+                } else {
+                    // Otherwise, show all tests in the group
+                    relevantTests = mappedResults.filter(result => 
+                        testGroup.tests.some(test => test._id === result.testId)
+                    );
+                }
+                
                 // Include all test groups from bill, even if they have no results yet
                 grouped[testGroup._id] = {
                     name: testGroup.name,
-                    tests: groupTests,
+                    tests: relevantTests,
                     index: index,
-                    totalTests: testGroup.tests.length,
+                    totalTests: customSelection ? customSelection.selectedTests.length : testGroup.tests.length,
                     sampleType: testGroup.sampleType,
-                    sampleTestedIn: testGroup.sampleTestedIn
+                    sampleTestedIn: testGroup.sampleTestedIn,
+                    hasCustomSelection: !!customSelection
                 };
             });
             

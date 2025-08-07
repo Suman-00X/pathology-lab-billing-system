@@ -4,6 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { List, FileText, Receipt, Trash2, Search, Filter, SortAsc, SortDesc, Calendar, DollarSign, RefreshCw } from 'lucide-react';
 import DoctorDropdown from '../../components/DoctorDropdown';
 import { useDoctors } from '../../hooks/useApiHooks';
+import PinVerificationModal from '../../components/PinVerificationModal';
+import toast from 'react-hot-toast';
 
 function BillsList() {
     const [searchTerm, setSearchTerm] = useState('');
@@ -20,6 +22,10 @@ function BillsList() {
     const [amountFilter, setAmountFilter] = useState('');
     const [amountValue, setAmountValue] = useState('');
     const [selectedDoctor, setSelectedDoctor] = useState('');
+    
+    // PIN verification modal state
+    const [showPinModal, setShowPinModal] = useState(false);
+    const [billToDelete, setBillToDelete] = useState(null);
     
     const itemsPerPage = 10;
     
@@ -214,14 +220,37 @@ function BillsList() {
         currentPage: currentPage
     }), [filteredAndSortedBills.length, currentPage]);
 
-    const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this bill and its associated report?')) {
-            try {
-                await deleteBill(id);
-            } catch (err) {
+    const handleDelete = (id) => {
+        setBillToDelete(id);
+        setShowPinModal(true);
+    };
+
+    const handleConfirmDelete = async (secretPin) => {
+        if (!billToDelete) return;
+        console.log('Deleting bill:', billToDelete);
+        console.log('Secret PIN:', secretPin);
         
+        try {
+            await deleteBill(billToDelete, secretPin);
+            toast.success('Bill deleted successfully');
+            setBillToDelete(null);
+            setShowPinModal(false);
+        } catch (err) {
+            console.error('Error deleting bill:', err);
+            // Keep the modal open if there's a PIN error
+            if (err.response?.status === 400 && err.response?.data?.message?.includes('PIN')) {
+                toast.error(err.response.data.message || 'Invalid secret PIN');
+            } else {
+                toast.error('Failed to delete bill. Please try again.');
+                setBillToDelete(null);
+                setShowPinModal(false);
             }
         }
+    };
+
+    const handleClosePinModal = () => {
+        setShowPinModal(false);
+        setBillToDelete(null);
     };
 
     const handleSearch = (e) => {
@@ -681,6 +710,15 @@ function BillsList() {
                     </div>
                 </div>
             )}
+
+            {/* PIN Verification Modal */}
+            <PinVerificationModal
+                isOpen={showPinModal}
+                onClose={handleClosePinModal}
+                onSuccess={handleConfirmDelete}
+                title="Delete Bill"
+                message="Enter your secret PIN to confirm bill deletion. This action cannot be undone."
+            />
         </div>
     );
 }

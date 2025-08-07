@@ -11,17 +11,33 @@ const api = axios.create({
   timeout: 30000, // Increased timeout to 30 seconds
 });
 
-// Request interceptor
+// Request interceptor to add auth token
 api.interceptors.request.use(
-  (config) => config,
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor
+// Response interceptor to handle auth errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     console.error('API Error:', error.response?.data || error.message);
+    
+    // Handle authentication errors
+    if (error.response?.status === 401) {
+      localStorage.removeItem('authToken');
+      // Only redirect to login if not already on login page
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    
     return Promise.reject(error);
   }
 );
@@ -54,7 +70,7 @@ export const billAPI = {
   getByNumber: (billNumber) => api.get(`/api/bills/number/${billNumber}`),
   create: (data) => api.post('/api/bills', data),
   update: (id, data) => api.put(`/api/bills/${id}`, data),
-  delete: (id) => api.delete(`/api/bills/${id}`),
+  delete: (id, secretPin) => api.post(`/api/bills/${id}/delete`, { "secretPin": secretPin }),
   updatePayment: (id, data) => api.put(`/api/bills/${id}/payment`, data),
   getStats: (params) => api.get('/api/bills/stats/summary', { params })
 };

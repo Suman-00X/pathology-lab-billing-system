@@ -53,6 +53,9 @@ const MultiSelect = React.forwardRef(({ options, value, onChange }, ref) => {
                                     >
                                         {option.name}
                                         <span className="ml-1 text-primary-600">₹{option.price}</span>
+                                        {option.isChecklistEnabled && (
+                                            <span className="ml-1 text-xs bg-blue-100 text-blue-600 px-1 rounded">✓</span>
+                                        )}
                                     </span>
                                 ))}
                             </div>
@@ -82,8 +85,13 @@ const MultiSelect = React.forwardRef(({ options, value, onChange }, ref) => {
                                     )}
                                 </div>
                                 <div className="ml-3 flex-1">
-                                    <div className="text-sm font-medium text-gray-900">{option.name}</div>
-                                    <div className="text-sm text-gray-500">₹{option.price}</div>
+                                    <div className="text-sm font-medium text-gray-900">
+                                        {option.name}
+                                        {option.isChecklistEnabled && (
+                                            <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">Checklist</span>
+                                        )}
+                                    </div>
+                                    <div className="text-sm text-gray-500">₹{option.price} • {option.tests?.length || 0} tests</div>
                                 </div>
                             </div>
                         ))}
@@ -235,6 +243,47 @@ function CreateBill() {
     const paidAmount = watch('paidAmount', 0);
     const paymentDetails = watch('paymentDetails', []);
     const doctorPhone = watch('doctorPhone', '');
+    
+    // State for custom test selections when checklist is enabled
+    const [customSelections, setCustomSelections] = useState({});
+    
+    // Define activeTestGroups early so it can be used in useEffect
+    const activeTestGroups = useMemo(() => testGroups.filter(g => g.isActive), [testGroups]);
+    
+    // Auto-select all tests when a checklist-enabled test group is selected
+    useEffect(() => {
+        if (!activeTestGroups.length) return; // Early return if no test groups
+        
+        const checklistGroups = activeTestGroups.filter(group => 
+            selectedGroupIds.includes(group._id) && group.isChecklistEnabled
+        );
+        
+        setCustomSelections(prevSelections => {
+            const newSelections = { ...prevSelections };
+            
+            checklistGroups.forEach(group => {
+                // Only auto-select if this group doesn't have selections yet
+                if (!newSelections[group._id] && group.tests?.length > 0) {
+                    newSelections[group._id] = {
+                        selectedTests: group.tests.map(test => ({
+                            test: test._id,
+                            customPrice: test.price || (group.price / group.tests.length)
+                        }))
+                    };
+                }
+            });
+            
+            // Remove selections for groups that are no longer selected or not checklist-enabled
+            Object.keys(newSelections).forEach(groupId => {
+                const group = activeTestGroups.find(g => g._id === groupId);
+                if (!group || !selectedGroupIds.includes(groupId) || !group.isChecklistEnabled) {
+                    delete newSelections[groupId];
+                }
+            });
+            
+            return newSelections;
+        });
+    }, [selectedGroupIds, activeTestGroups]);
 
     // Debounce doctor phone changes
     useEffect(() => {
@@ -272,15 +321,20 @@ function CreateBill() {
     const forceUpdate = useCallback(() => {
         setForceUpdateCounter(prev => prev + 1);
     }, []);
-
-    const activeTestGroups = useMemo(() => testGroups.filter(g => g.isActive), [testGroups]);
     
     // Calculate amounts
     const totalAmount = useMemo(() => {
         return activeTestGroups
             .filter(g => selectedGroupIds.includes(g._id))
-            .reduce((sum, group) => sum + group.price, 0);
-    }, [selectedGroupIds, activeTestGroups]);
+            .reduce((sum, group) => {
+                // If it's a checklist-enabled group, use custom selection pricing
+                if (group.isChecklistEnabled && customSelections[group._id]?.selectedTests?.length > 0) {
+                    return sum + customSelections[group._id].selectedTests.reduce((total, t) => total + (t.customPrice || 0), 0);
+                }
+                // Otherwise use the group's original price
+                return sum + group.price;
+            }, 0);
+    }, [selectedGroupIds, activeTestGroups, customSelections]);
 
     const taxPercentage = settings?.taxPercentage || 0;
     const taxEnabled = settings?.taxEnabled !== false;
@@ -379,6 +433,11 @@ function CreateBill() {
                 referringCustomer: data.referringCustomer || '',
             },
             testGroups: data.testGroups,
+            customSelections: Object.keys(customSelections).map(groupId => ({
+                testGroupId: groupId,
+                selectedTests: customSelections[groupId].selectedTests,
+                totalPrice: customSelections[groupId].selectedTests.reduce((sum, t) => sum + (t.customPrice || 0), 0)
+            })).filter(cs => cs.selectedTests.length > 0),
             sampleCollectionDate: data.sampleCollectionDate,
             sampleReceivedDate: data.sampleReceivedDate,
             toBePaidAmount: finalAmount,
@@ -618,6 +677,127 @@ function CreateBill() {
                             )}
                             {errors.testGroups && <span className="text-red-500 text-sm mt-1 block">{errors.testGroups.message}</span>}
                         </div>
+
+                        {/* Custom Test Selection for Checklist-Enabled Test Groups */}
+                        {activeTestGroups
+                            .filter(group => selectedGroupIds.includes(group._id) && group.isChecklistEnabled)
+                            .map(group => (
+                                <div key={group._id} className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="text-sm font-medium text-blue-900">
+                                            Select Tests from {group.name}
+                                        </h4>
+                                        <div className="flex items-center space-x-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const newSelections = { ...customSelections };
+                                                    const allSelected = group.tests?.every(test => 
+                                                        newSelections[group._id]?.selectedTests?.some(t => t.test === test._id)
+                                                    );
+                                                    
+                                                    if (allSelected) {
+                                                        // Deselect all
+                                                        newSelections[group._id] = { selectedTests: [] };
+                                                    } else {
+                                                        // Select all
+                                                        newSelections[group._id] = {
+                                                            selectedTests: group.tests?.map(test => ({
+                                                                test: test._id,
+                                                                customPrice: test.price || (group.price / group.tests.length)
+                                                            })) || []
+                                                        };
+                                                    }
+                                                    setCustomSelections(newSelections);
+                                                }}
+                                                className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                            >
+                                                {group.tests?.every(test => 
+                                                    customSelections[group._id]?.selectedTests?.some(t => t.test === test._id)
+                                                ) ? 'Deselect All' : 'Select All'}
+                                            </button>
+                                            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                                                Checklist Mode
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        {group.tests?.map(test => {
+                                            const isSelected = customSelections[group._id]?.selectedTests?.some(t => t.test === test._id);
+                                            const customPrice = customSelections[group._id]?.selectedTests?.find(t => t.test === test._id)?.customPrice || test.price || group.price / (group.tests?.length || 1);
+                                            
+                                            return (
+                                                <div key={test._id} className="flex items-center justify-between p-2 bg-white border border-gray-200 rounded">
+                                                    <div className="flex items-center space-x-3">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={(e) => {
+                                                                const newSelections = { ...customSelections };
+                                                                if (!newSelections[group._id]) {
+                                                                    newSelections[group._id] = { selectedTests: [] };
+                                                                }
+                                                                
+                                                                if (e.target.checked) {
+                                                                    newSelections[group._id].selectedTests.push({
+                                                                        test: test._id,
+                                                                        customPrice: test.price || group.price / (group.tests?.length || 1)
+                                                                    });
+                                                                } else {
+                                                                    newSelections[group._id].selectedTests = newSelections[group._id].selectedTests.filter(t => t.test !== test._id);
+                                                                }
+                                                                
+                                                                setCustomSelections(newSelections);
+                                                            }}
+                                                            className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                                                        />
+                                                        <span className="text-sm font-medium text-gray-900">{test.name}</span>
+                                                        {test.units && (
+                                                            <span className="text-xs text-gray-500">({test.units})</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center space-x-2">
+                                                        <span className="text-xs text-gray-500">₹</span>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.01"
+                                                            value={customPrice}
+                                                            onChange={(e) => {
+                                                                const newSelections = { ...customSelections };
+                                                                if (!newSelections[group._id]) {
+                                                                    newSelections[group._id] = { selectedTests: [] };
+                                                                }
+                                                                
+                                                                const testIndex = newSelections[group._id].selectedTests.findIndex(t => t.test === test._id);
+                                                                if (testIndex >= 0) {
+                                                                    newSelections[group._id].selectedTests[testIndex].customPrice = parseFloat(e.target.value) || 0;
+                                                                } else if (isSelected) {
+                                                                    newSelections[group._id].selectedTests.push({
+                                                                        test: test._id,
+                                                                        customPrice: parseFloat(e.target.value) || 0
+                                                                    });
+                                                                }
+                                                                
+                                                                setCustomSelections(newSelections);
+                                                            }}
+                                                            className="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
+                                                            disabled={!isSelected}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="mt-3 p-2 bg-blue-100 rounded text-sm">
+                                        <span className="font-medium text-blue-900">Total for {group.name}: ₹</span>
+                                        <span className="text-blue-900">
+                                            {(customSelections[group._id]?.selectedTests?.reduce((sum, t) => sum + (t.customPrice || 0), 0) || 0).toFixed(2)}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))
+                        }
                     </div>
                 </div>
 

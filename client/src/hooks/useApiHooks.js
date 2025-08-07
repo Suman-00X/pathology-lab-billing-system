@@ -165,8 +165,9 @@ export function useBills(params = {}) {
     return result;
   }, [api.bills, refresh]);
   
-  const deleteBill = useCallback(async (id) => {
-    await api.bills.delete(id);
+  const deleteBill = useCallback(async (id, secretPin) => {
+    console.log('Deleting bill details in hook:', id, secretPin);
+    await api.bills.delete(id, secretPin);
     refresh();
   }, [api.bills, refresh]);
   

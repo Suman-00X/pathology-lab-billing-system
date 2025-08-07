@@ -11,9 +11,13 @@ import {
   Plus,
   List,
   Building2,
-  Info
+  Info,
+  LogOut,
+  User,
+  ChevronDown
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useAuth } from '../contexts/AuthContext';
 import Footer from './Footer';
 
 const navigation = [
@@ -40,7 +44,9 @@ const navigation = [
 
 function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
+  const { client, logout } = useAuth();
 
   const isActive = (href) => {
     return location.pathname === href;
@@ -81,14 +87,47 @@ function Layout({ children }) {
 
       {/* Main content */}
       <div className="lg:pl-64 flex flex-col min-h-screen pb-24">
-        <div className="sticky top-0 z-10 bg-white pl-1 pt-1 sm:pl-3 sm:pt-3 lg:hidden">
+        <div className="sticky top-0 z-10 bg-white pl-1 pt-1 sm:pl-3 sm:pt-3 flex items-center justify-between">
+          {/* Mobile menu button */}
           <button
             type="button"
-            className="-ml-0.5 -mt-0.5 inline-flex h-12 w-12 items-center justify-center rounded-md text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
+            className="-ml-0.5 -mt-0.5 inline-flex h-12 w-12 items-center justify-center rounded-md text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 lg:hidden"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="h-6 w-6" />
           </button>
+
+          {/* User menu */}
+          <div className="relative mr-4 lg:mr-8">
+            <button
+              type="button"
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
+            >
+              <User className="h-5 w-5 mr-2" />
+              <span className="hidden sm:block">{client?.organizationName}</span>
+              <ChevronDown className="h-4 w-4 ml-1" />
+            </button>
+            
+            {userMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border">
+                <div className="px-4 py-2 text-sm text-gray-700 border-b">
+                  <div className="font-medium">{client?.organizationName}</div>
+                  <div className="text-xs text-gray-500">{client?.email}</div>
+                </div>
+                <button
+                  onClick={() => {
+                    logout();
+                    setUserMenuOpen(false);
+                  }}
+                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         
         <main className="flex-1">

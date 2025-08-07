@@ -335,8 +335,8 @@ export function ApiProvider({ children }) {
         toast.success('Bill updated successfully!');
         return result;
       },
-      delete: async (id) => {
-        await billAPI.delete(id);
+      delete: async (id, secretKey) => {
+        await billAPI.delete(id, secretKey);
         invalidateCache([`bills/${id}`], 'bills');
         invalidateCache(null, 'reports');
         invalidateCache(null, 'referred-doctors');
