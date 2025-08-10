@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
+// Use localhost for development, production URL for production
+const API_BASE_URL = import.meta.env.DEV 
+  ? 'http://localhost:5000' 
+  : 'https://pathology-lab-billing-system.onrender.com';
+
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -27,7 +32,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchClientInfo = async () => {
     try {
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -51,7 +56,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setLoading(true);
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -91,7 +96,7 @@ export const AuthProvider = ({ children }) => {
 
   const verifyPin = async (secretPin) => {
     try {
-      const response = await fetch('/api/auth/verify-pin', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/verify-pin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -116,7 +121,7 @@ export const AuthProvider = ({ children }) => {
 
   const changePassword = async (currentPassword, newPassword) => {
     try {
-      const response = await fetch('/api/auth/change-password', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -141,7 +146,7 @@ export const AuthProvider = ({ children }) => {
 
   const changePin = async (currentPin, newPin) => {
     try {
-      const response = await fetch('/api/auth/change-pin', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/change-pin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
