@@ -28,10 +28,10 @@ router.post('/', billController.createBill);
 // @access  Public
 router.put('/:id', billController.updateBill);
 
-// @route   DELETE /api/bills/:id
-// @desc    Delete a bill
+// @route   POST /api/bills/:id/delete
+// @desc    Delete a bill (using POST for better body handling)
 // @access  Public
-router.delete('/:id', billController.deleteBill);
+router.post('/:id/delete', billController.deleteBill);
 
 // @route   PUT /api/bills/:id/payment
 // @desc    Update payment status

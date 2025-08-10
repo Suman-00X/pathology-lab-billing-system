@@ -108,7 +108,9 @@ export const billController = {
       await newReport.save();
 
       await newBill.populate([
-        { path: 'testGroups', select: 'name price' },
+        { path: 'testGroups', select: 'name price sampleType sampleTestedIn isChecklistEnabled' },
+        { path: 'customSelections.testGroupId', select: 'name price sampleType sampleTestedIn' },
+        { path: 'customSelections.selectedTests.test', select: 'name units normalRange' },
         { path: 'paymentDetails.mode', select: 'name' }
       ]);
       res.status(201).json({ message: 'Bill created successfully', bill: newBill });
@@ -119,20 +121,56 @@ export const billController = {
     }
   },
 
-  // Delete a bill and its corresponding report
+  // Delete a bill and its corresponding report (requires secret PIN verification)
   async deleteBill(req, res) {
     try {
-      const bill = await Bill.findByIdAndDelete(req.params.id);
+      console.log('Delete Bill Request:', {
+        body: req.body,
+        headers: req.headers,
+        method: req.method
+      });
+      
+      const { secretPin } = req.body;
+      console.log('Secret PIN:', secretPin);
+      // Verify secret PIN
+      if (!secretPin) {
+        return res.status(400).json({ message: 'Secret PIN is required to delete a bill' });
+      }
+
+      if (!req.client) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+
+      const isValidPin = await req.client.compareSecretPin(secretPin);
+      if (!isValidPin) {
+        return res.status(403).json({ message: 'Invalid secret PIN. Bill deletion denied.' });
+      }
+
+      // Find and delete bill (with client isolation)
+      const bill = await Bill.findOneAndDelete({ 
+        _id: req.params.id, 
+        clientId: req.clientId 
+      });
+      
       if (!bill) {
-        return res.status(404).json({ message: 'Bill not found' });
+        return res.status(404).json({ message: 'Bill not found or access denied' });
       }
 
       // Delete the corresponding report
-      await Report.deleteOne({ bill: bill._id });
+      await Report.deleteOne({ 
+        bill: bill._id, 
+        clientId: req.clientId 
+      });
 
-      res.json({ message: 'Bill and associated report deleted successfully' });
+      res.json({ 
+        message: 'Bill and associated report deleted successfully',
+        deletedBill: {
+          id: bill._id,
+          billNumber: bill.billNumber,
+          patientName: bill.patient.name
+        }
+      });
     } catch (error) {
-
       res.status(500).json({ message: 'Error deleting bill', error: error.message });
     }
   },
@@ -269,7 +307,9 @@ export const billController = {
       
       
       await billToUpdate.populate([
-        { path: 'testGroups', select: 'name price' },
+        { path: 'testGroups', select: 'name price sampleType sampleTestedIn isChecklistEnabled' },
+        { path: 'customSelections.testGroupId', select: 'name price sampleType sampleTestedIn' },
+        { path: 'customSelections.selectedTests.test', select: 'name units normalRange' },
         { path: 'paymentDetails.mode', select: 'name' }
       ]);
       
@@ -499,7 +539,8 @@ export const billController = {
       } else {
         // Regular query for other searches
         bills = await Bill.find(filter)
-          .populate({ path: 'testGroups', select: 'name price' })
+          .populate({ path: 'testGroups', select: 'name price sampleType sampleTestedIn isChecklistEnabled' })
+          .populate({ path: 'customSelections.testGroupId', select: 'name price sampleType sampleTestedIn' })
           .sort(sortObject)
           .skip(skip)
           .limit(parseInt(limit));
@@ -534,7 +575,9 @@ export const billController = {
   async getBillById(req, res) {
     try {
       const bill = await Bill.findById(req.params.id)
-        .populate({ path: 'testGroups', select: 'name price tests', populate: { path: 'tests', select: 'name units normalRange' }})
+        .populate({ path: 'testGroups', select: 'name price tests sampleType sampleTestedIn isChecklistEnabled', populate: { path: 'tests', select: 'name units normalRange' }})
+        .populate({ path: 'customSelections.testGroupId', select: 'name price sampleType sampleTestedIn' })
+        .populate({ path: 'customSelections.selectedTests.test', select: 'name units normalRange' })
         .populate({ path: 'paymentDetails.mode', select: 'name' });
       
       if (!bill) return res.status(404).json({ message: 'Bill not found' });
@@ -550,7 +593,8 @@ export const billController = {
   async getBillByNumber(req, res) {
     try {
       const bill = await Bill.findOne({ billNumber: req.params.billNumber })
-        .populate({ path: 'testGroups', select: 'name price' });
+        .populate({ path: 'testGroups', select: 'name price sampleType sampleTestedIn isChecklistEnabled' })
+        .populate({ path: 'customSelections.testGroupId', select: 'name price sampleType sampleTestedIn' });
       
       if (!bill) return res.status(404).json({ message: 'Bill not found' });
       res.json(bill);

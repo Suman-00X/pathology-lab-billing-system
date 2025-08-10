@@ -1,6 +1,13 @@
 import mongoose from 'mongoose';
 
 const testSchema = new mongoose.Schema({
+  // Multi-tenant support
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true,
+    index: true
+  },
   name: {
     type: String,
     required: [true, 'Test name is required'],
@@ -27,6 +34,10 @@ const testSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Indexes for multi-tenant performance
+testSchema.index({ clientId: 1, name: 1 });
+testSchema.index({ clientId: 1, isActive: 1 });
 
 const Test = mongoose.model('Test', testSchema);
 

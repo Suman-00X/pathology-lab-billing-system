@@ -1,6 +1,13 @@
 import mongoose from 'mongoose';
 
 const referredDoctorSchema = new mongoose.Schema({
+  // Multi-tenant support
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true,
+    index: true
+  },
   name: {
     type: String,
     required: true,
@@ -26,8 +33,9 @@ const referredDoctorSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for faster searches
-referredDoctorSchema.index({ name: 'text', phone: 'text' });
+// Indexes for multi-tenant performance
+referredDoctorSchema.index({ clientId: 1, phone: 1 }, { unique: true }); // Unique phone per client
+referredDoctorSchema.index({ clientId: 1, name: 1 });
 
 const ReferredDoctor = mongoose.model('ReferredDoctor', referredDoctorSchema);
 

@@ -6,12 +6,18 @@ export const testGroupController = {
   // Create a new test group
   async createTestGroup(req, res) {
     try {
-      const { name, price, sampleType, sampleTestedIn } = req.body;
+      const { name, price, sampleType, sampleTestedIn, isChecklistEnabled } = req.body;
       if (!name || !price || !sampleType || !sampleTestedIn) {
         return res.status(400).json({ message: 'Name, price, sample type, and sample tested in are required.' });
       }
 
-      const newTestGroup = new TestGroup({ name, price, sampleType, sampleTestedIn });
+      const newTestGroup = new TestGroup({ 
+        name, 
+        price, 
+        sampleType, 
+        sampleTestedIn, 
+        isChecklistEnabled: Boolean(isChecklistEnabled)
+      });
       await newTestGroup.save();
       res.status(201).json(newTestGroup);
     } catch (error) {
@@ -69,10 +75,10 @@ export const testGroupController = {
   // Update a test group
   async updateTestGroup(req, res) {
     try {
-      const { name, price, isActive, sampleType, sampleTestedIn } = req.body;
+      const { name, price, isActive, sampleType, sampleTestedIn, isChecklistEnabled } = req.body;
       const updatedTestGroup = await TestGroup.findByIdAndUpdate(
         req.params.id,
-        { name, price, isActive, sampleType, sampleTestedIn },
+        { name, price, isActive, sampleType, sampleTestedIn, isChecklistEnabled: Boolean(isChecklistEnabled) },
         { new: true, runValidators: true }
       );
       if (!updatedTestGroup) {

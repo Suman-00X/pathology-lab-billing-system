@@ -1,6 +1,13 @@
 import mongoose from 'mongoose';
 
 const labSchema = new mongoose.Schema({
+  // Multi-tenant support
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true,
+    index: true
+  },
   name: {
     type: String,
     required: true,

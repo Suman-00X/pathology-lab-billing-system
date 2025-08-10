@@ -1,9 +1,15 @@
 import mongoose from 'mongoose';
 
 const billSchema = new mongoose.Schema({
+  // Multi-tenant support
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true,
+    index: true
+  },
   billNumber: {
-    type: String,
-    unique: true
+    type: String
   },
   patient: {
     name: {
@@ -55,6 +61,29 @@ const billSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'TestGroup',
     required: true
+  }],
+  // Optional: For checklist-enabled test groups - store custom selections
+  customSelections: [{
+    testGroupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'TestGroup',
+      required: true
+    },
+    selectedTests: [{
+      test: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Test',
+        required: true
+      },
+      customPrice: {
+        type: Number,
+        min: 0
+      }
+    }],
+    totalPrice: {
+      type: Number,
+      min: 0
+    }
   }],
   totalAmount: {
     type: Number,
@@ -179,10 +208,11 @@ billSchema.pre('save', async function(next) {
   next();
 });
 
-// Index for faster queries (billNumber already indexed by unique: true)
-billSchema.index({ 'patient.name': 'text', 'patient.phone': 'text' });
-billSchema.index({ billDate: -1 });
-billSchema.index({ status: 1 });
+// Indexes for multi-tenant performance
+billSchema.index({ clientId: 1, billNumber: 1 }, { unique: true }); // Unique billNumber per client
+billSchema.index({ clientId: 1, 'patient.name': 'text', 'patient.phone': 'text' });
+billSchema.index({ clientId: 1, billDate: -1 });
+billSchema.index({ clientId: 1, status: 1 });
 
 const Bill = mongoose.model('Bill', billSchema);
 

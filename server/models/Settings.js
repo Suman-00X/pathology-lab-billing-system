@@ -1,6 +1,14 @@
 import mongoose from 'mongoose';
 
 const settingsSchema = new mongoose.Schema({
+  // Multi-tenant support
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true,
+    unique: true,
+    index: true
+  },
   taxPercentage: {
     type: Number,
     required: true,

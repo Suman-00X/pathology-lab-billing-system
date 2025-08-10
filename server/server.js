@@ -24,6 +24,11 @@ import reportRoutes from './routes/reportRoutes.js';
 import paymentModeRoutes from './routes/paymentModeRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import referredDoctorRoutes from './routes/referredDoctorRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+
+// Import middleware
+import { authenticateClient, injectClientId } from './middleware/auth.js';
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -62,14 +67,18 @@ app.use('/api/test-groups', (req, res, next) => {
 // Serve static files (for logo uploads)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Routes
-app.use('/api/lab', labRoutes);
-app.use('/api/test-groups', testGroupRoutes);
-app.use('/api/bills', billRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/payment-modes', paymentModeRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/referred-doctors', referredDoctorRoutes);
+// Public routes (no authentication required)
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+
+// Protected routes (require authentication and client isolation)
+app.use('/api/lab', authenticateClient, injectClientId, labRoutes);
+app.use('/api/test-groups', authenticateClient, injectClientId, testGroupRoutes);
+app.use('/api/bills', authenticateClient, injectClientId, billRoutes);
+app.use('/api/reports', authenticateClient, injectClientId, reportRoutes);
+app.use('/api/payment-modes', authenticateClient, injectClientId, paymentModeRoutes);
+app.use('/api/settings', authenticateClient, injectClientId, settingsRoutes);
+app.use('/api/referred-doctors', authenticateClient, injectClientId, referredDoctorRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
